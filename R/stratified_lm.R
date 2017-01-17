@@ -1,7 +1,7 @@
 calc.pvalue <- . %>%
   abs %>%
   pnorm(lower.tail = FALSE) %>%
-  plyr::multiply_by(2)
+  magrittr::multiply_by(2)
 
 #' @export
 run_strat_reg  <- function(.data, ...) UseMethod("run_strat_reg")
