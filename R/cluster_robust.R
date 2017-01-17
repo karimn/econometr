@@ -30,7 +30,7 @@ vcov_clx.default <- function(fm, cluster, ...) {
   }
 
   dfc <- (M/(M - 1)) * ((N - 1)/(N - fm$rank))
-  u <- apply(estfun(fm), 2, . %>% tapply(cluster, sum))
+  u <- apply(sandwich::estfun(fm), 2, . %>% tapply(cluster, sum))
 
   dfc * sandwich::sandwich(fm, meat. = crossprod(u)/N) * dfcw
 }
