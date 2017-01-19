@@ -51,7 +51,7 @@ run_strat_reg.default <- function(.data,
       set_colnames(stringr::str_replace_all(colnames(.), paste(all.vars(.formula)[-1], collapse = "|"), "")) %>% {
         new.col.names <- paste(rep(colnames(.), each = ncol(strat.design.mat)), colnames(strat.design.mat), sep = "_")
         plyr::alply(., 2, function(.treat.col) strat.design.mat * .treat.col) %>% { do.call(cbind, .) } %>%
-          set_names(new.col.names)
+          set_colnames(new.col.names)
       }
 
 
@@ -73,14 +73,15 @@ run_strat_reg.default <- function(.data,
 
           unname(.) %>%
             plyr::alply(2, function(.covar.col) strat.design.mat * .covar.col) %>% { do.call(cbind, .) } %>%
-            set_names(new.col.names)
+            set_colnames(new.col.names)
         }
       design.mat <- cbind(strat.design.mat, treat.design.mat, covar.design.mat)
     } else {
       design.mat <- cbind(strat.design.mat, treat.design.mat)
     }
 
-    design.mat %>% set_names(stringr::str_replace_all(colnames(.), list("_?stratum$" = "", "^$" = "(intercept)")))
+    design.mat %>%
+      set_colnames(stringr::str_replace_all(colnames(.), list("_?stratum$" = "", "^$" = "(intercept)")))
   }
 
   design.mat <- get.strat.design.matrix()

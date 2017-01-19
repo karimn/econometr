@@ -12,6 +12,7 @@ Imports:
   magrittr,
   plyr,
   dplyr,
+  tidyr,
   purrr,
   stringr,
   broom,
