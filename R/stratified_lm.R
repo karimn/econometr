@@ -186,7 +186,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
     new.class <- c("linear_test_result_joint", new.class)
 
     car::lht(reg.output, test.list, vcov = vcov_clx, test = "F") %>%
-      broom::tidy %>%
+      broom::tidy() %>%
       filter(!is.na(p.value)) %>%
       mutate(linear.test = list(test.list)) %>%
       select(linear.test, statistic, p.value)
