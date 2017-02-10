@@ -12,4 +12,3 @@ estfun.lm_strat(fm)
 \description{
 Title
 }
-

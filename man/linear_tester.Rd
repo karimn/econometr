@@ -12,4 +12,3 @@ linear_tester(reg.output, test.list, joint = FALSE)
 \description{
 Title
 }
-

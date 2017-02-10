@@ -12,4 +12,3 @@ bread.lm_strat(fm)
 \description{
 Title
 }
-

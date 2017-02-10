@@ -4,7 +4,7 @@
 \alias{tidy.lm_strat}
 \title{Title}
 \usage{
-tidy.lm_strat(fm)
+tidy.lm_strat(fm, .include_covar = FALSE, ...)
 }
 \arguments{
 \item{fm}{}
@@ -12,4 +12,3 @@ tidy.lm_strat(fm)
 \description{
 Title
 }
-

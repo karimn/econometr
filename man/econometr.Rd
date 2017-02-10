@@ -8,4 +8,3 @@
 \description{
 econometr
 }
-

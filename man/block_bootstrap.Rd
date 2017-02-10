@@ -12,4 +12,3 @@ block_bootstrap(df, m, block, .valid.pred)
 \description{
 From https://cran.r-project.org/web/packages/broom/vignettes/bootstrapping.html
 }
-

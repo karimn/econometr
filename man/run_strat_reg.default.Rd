@@ -13,4 +13,3 @@
 \description{
 Run Stratified Regression
 }
-

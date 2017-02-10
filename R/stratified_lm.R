@@ -1,7 +1,9 @@
-calc.pvalue <- . %>%
-  abs %>%
-  pnorm(lower.tail = FALSE) %>%
-  magrittr::multiply_by(2)
+calc.pvalue <- function(t.val) {
+  t.val %>%
+    abs %>%
+    pnorm(lower.tail = FALSE) %>%
+    magrittr::multiply_by(2)
+}
 
 #' @export
 run_strat_reg  <- function(.data, ...) UseMethod("run_strat_reg")
@@ -152,13 +154,14 @@ vcov_clx.lm_strat <- function(fm, ...) {
 #' @export
 #'
 #' @examples
-tidy.lm_strat <- function(fm) {
+tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
   tibble(term = names(fm$coefficients),
          estimate = fm$coefficients,
          std.error = vcov_clx(fm) %>% diag %>% sqrt,
          statistic = fm$coefficients / std.error,
          p.value = calc.pvalue(statistic)) %>%
-    filter(!stringr::str_detect(term, "stratum|covar_")) # TODO clean this up
+    filter(!stringr::str_detect(term, "stratum")) %>%
+    mutate(term = stringr::str_replace(term, "^covar_", ""))
 }
 
 #' Title

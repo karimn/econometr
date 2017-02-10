@@ -12,4 +12,3 @@ tidy.linear_test_result_joint(.res)
 \description{
 Title
 }
-
