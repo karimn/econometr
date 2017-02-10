@@ -162,8 +162,8 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
          statistic = fm$coefficients / std.error,
          p.value = calc.pvalue(statistic)) %>%
     filter(!stringr::str_detect(term, "stratum"),
-           .include_covar | !stringr::str_detect("covar_")) %>%
-    arrange(!stringr::str_detect("covar_")) %>% # Put the covariates last
+           .include_covar | !stringr::str_detect(term, "covar_")) %>%
+    arrange(!stringr::str_detect(term, "covar_")) %>% # Put the covariates last
     mutate(term = stringr::str_replace(term, "^covar_", ""))
 }
 
