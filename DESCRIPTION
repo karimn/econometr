@@ -1,7 +1,7 @@
 Package: econometr
 Type: Package
 Title: Econometrics
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: person("Karim", "Naguib", email = "karimn2.0@gmail.com", role = c("aut", "cre"))
 Description: Implementing own commonly used functions
 License: MIT
@@ -17,4 +17,5 @@ Imports:
   stringr,
   broom,
   sandwich,
-  car
+  car,
+  sp
