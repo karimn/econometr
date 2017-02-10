@@ -2,13 +2,13 @@
 % Please edit documentation in R/stratified_lm.R
 \name{tidy.lm_strat}
 \alias{tidy.lm_strat}
-\title{Title}
+\title{Tidy stratified regression results}
 \usage{
 tidy.lm_strat(fm, .include_covar = FALSE, ...)
 }
 \arguments{
-\item{fm}{}
+\item{.include_covar}{}
 }
 \description{
-Title
+Tidy stratified regression results
 }

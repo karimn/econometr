@@ -146,9 +146,10 @@ vcov_clx.lm_strat <- function(fm, ...) {
   vcov_clx.default(fm, fm$cluster)
 }
 
-#' Title
+#' Tidy stratified regression results
 #'
 #' @param fm
+#' @param .include_covar
 #'
 #' @return
 #' @export
@@ -160,7 +161,9 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
          std.error = vcov_clx(fm) %>% diag %>% sqrt,
          statistic = fm$coefficients / std.error,
          p.value = calc.pvalue(statistic)) %>%
-    filter(!stringr::str_detect(term, "stratum")) %>%
+    filter(!stringr::str_detect(term, "stratum"),
+           .include_covar | !stringr::str_detect("covar_")) %>%
+    arrange(!stringr::str_detect("covar_")) %>% # Put the covariates last
     mutate(term = stringr::str_replace(term, "^covar_", ""))
 }
 
