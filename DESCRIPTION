@@ -4,7 +4,7 @@ Title: Econometrics
 Version: 0.1.2
 Authors@R: person("Karim", "Naguib", email = "karimn2.0@gmail.com", role = c("aut", "cre"))
 Description: Implementing own commonly used functions
-License: MIT
+License: None
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
@@ -18,4 +18,5 @@ Imports:
   broom,
   sandwich,
   car,
-  sp
+  sp,
+  foreach

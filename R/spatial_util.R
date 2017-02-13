@@ -8,9 +8,9 @@
 #' @export
 #'
 #' @examples
-get.boundary.adm <- function(in.adm, bounding.adm, max.distance=boundary.max.dist) {
-  which.mask <- foreach(index=seq_len(nrow(in.adm)), .combine=c) %do% {
-    gDistance(in.adm[index, ], bounding.adm) <= max.distance
+get.boundary.adm <- function(in.adm, bounding.adm, max.distance) {
+  which.mask <- foreach::foreach(index = seq_len(nrow(in.adm)), .combine = c) %do% {
+    sp::gDistance(in.adm[index, ], bounding.adm) <= max.distance
   }
 
   return(in.adm[which.mask, ])
