@@ -31,6 +31,12 @@ run_strat_reg.default <- function(.data,
     tidyr::unite_("stratum", from = .strat.by, sep = ".", remove = TRUE) %>%
     mutate(stratum = factor(stratum))
 
+  # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
+  old.contrasts <- getOption("contrasts")
+  old.contrasts["unordered"] <- "contr.Treatment"
+  old.options <- options(contrasts = old.contrasts)
+  on.exit(options(old.options), add = TRUE)
+
   get.strat.design.matrix <- function() {
     strata.contrasts <- clean.data %>%
     select_(.dots = c(all.vars(.formula)[-1], "stratum", .covariates)) %>% {
@@ -50,7 +56,7 @@ run_strat_reg.default <- function(.data,
 
     treat.design.mat <- model.matrix(.formula, clean.data) %>%
       magrittr::extract(, -1) %>%
-      set_colnames(stringr::str_replace_all(colnames(.), paste(all.vars(.formula)[-1], collapse = "|"), "")) %>% {
+      set_colnames(stringr::str_replace_all(colnames(.), ".+\\[T\\.([^\\]]+)\\]", "\\1")) %>% {
         new.col.names <- paste(rep(colnames(.), each = ncol(strat.design.mat)), colnames(strat.design.mat), sep = "_")
         plyr::alply(., 2, function(.treat.col) strat.design.mat * .treat.col) %>% { do.call(cbind, .) } %>%
           set_colnames(new.col.names)
