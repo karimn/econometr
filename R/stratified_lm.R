@@ -56,7 +56,7 @@ run_strat_reg.default <- function(.data,
 
     treat.design.mat <- model.matrix(.formula, clean.data) %>%
       magrittr::extract(, -1) %>%
-      set_colnames(stringr::str_replace_all(colnames(.), ".+\\[T\\.([^\\]]+)\\]", "\\1")) %>% {
+      set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2")) %>% {
         new.col.names <- paste(rep(colnames(.), each = ncol(strat.design.mat)), colnames(strat.design.mat), sep = "_")
         plyr::alply(., 2, function(.treat.col) strat.design.mat * .treat.col) %>% { do.call(cbind, .) } %>%
           set_colnames(new.col.names)
