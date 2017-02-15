@@ -2,7 +2,7 @@
 % Please edit documentation in R/util.R
 \name{is_outlier}
 \alias{is_outlier}
-\title{Title}
+\title{Identify outlier values}
 \usage{
 is_outlier(.values)
 }
@@ -10,5 +10,5 @@ is_outlier(.values)
 \item{.values}{}
 }
 \description{
-Title
+Identify outlier values
 }
