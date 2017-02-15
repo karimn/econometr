@@ -37,49 +37,45 @@ run_strat_reg.default <- function(.data,
   old.options <- options(contrasts = old.contrasts)
   on.exit(options(old.options), add = TRUE)
 
-  get.strat.design.matrix <- function() {
-    strata.contrasts <- clean.data %>%
-      select_(.dots = c(all.vars(.formula)[-1], "stratum", .covariates)) %>% {
-        strata.sizes <- model.matrix(~ stratum, .) %>% colSums
+  strata.contrasts <- clean.data %>%
+    select_(.dots = c(all.vars(.formula)[-1], "stratum", .covariates)) %>% {
+      strata.sizes <- model.matrix(~ stratum, .) %>% colSums
 
-        contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
-          magrittr::inset(1, , strata.sizes)
-      }
-
-    colnames(strata.contrasts)[1] <- ""
-
-    strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
-    strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
-
-    design.mat <- update.formula(.formula, ~ . * stratum) %>%
-      model.matrix(clean.data, contrasts.arg = list(stratum = strata.contrasts)) %>%
-      magrittr::extract(, stringr::str_detect(colnames(.), "stratum")) %>%
-      set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2"))
-
-    # Handling the covariates on their own because we want to demean them for each stratum. That way the intercept has a clearer
-    # interpretation
-    if (!is.null(.covariates)) {
-      design.mat <- clean.data %>%
-        transmute_(.dots = c("stratum", setNames(.covariates, paste0("covar_", .covariates)))) %>%
-        group_by(stratum) %>%
-        do(strat.covar.mat = model.matrix(as.formula(sprintf("~ (%s) * stratum", paste(paste0("covar_", .covariates), collapse = " + "))),
-                                          data = .,
-                                          contrasts.arg = list(stratum = strata.contrasts)) %>%
-            magrittr::extract(, stringr::str_detect(colnames(.), "covar_.*stratum")) %>%
-            t %>%
-            magrittr::subtract(rowMeans(.))) %>%
-        ungroup %>% {
-          do.call(cbind, .$strat.covar.mat)
-        } %>%
-        t %>%
-        cbind(design.mat, .)
+      contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
+        magrittr::inset(1, , strata.sizes)
     }
 
-    design.mat %>%
-      set_colnames(stringr::str_replace_all(colnames(.), list(":?stratum$" = "", "^$" = "(intercept)")))
+  colnames(strata.contrasts)[1] <- ""
+
+  strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
+  strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
+
+  design.mat <- update.formula(.formula, ~ . * stratum) %>%
+    model.matrix(clean.data, contrasts.arg = list(stratum = strata.contrasts)) %>%
+    magrittr::extract(, stringr::str_detect(colnames(.), "stratum")) %>%
+    set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2"))
+
+  # Handling the covariates on their own because we want to demean them for each stratum. That way the intercept has a clearer
+  # interpretation
+  if (!is.null(.covariates)) {
+    design.mat <- clean.data %>%
+      transmute_(.dots = c("stratum", setNames(.covariates, paste0("covar_", .covariates)))) %>%
+      group_by(stratum) %>%
+      do(strat.covar.mat = model.matrix(as.formula(sprintf("~ (%s) * stratum", paste(paste0("covar_", .covariates), collapse = " + "))),
+                                        data = .,
+                                        contrasts.arg = list(stratum = strata.contrasts)) %>%
+          magrittr::extract(, stringr::str_detect(colnames(.), "covar_.*stratum")) %>%
+          t %>%
+          magrittr::subtract(rowMeans(.))) %>%
+      ungroup %>% {
+        do.call(cbind, .$strat.covar.mat)
+      } %>%
+      t %>%
+      cbind(design.mat, .)
   }
 
-  design.mat <- get.strat.design.matrix()
+  design.mat %<>%
+    set_colnames(stringr::str_replace_all(colnames(.), list(":?stratum$" = "", "^$" = "(intercept)")))
 
   y <- model.frame(.formula, clean.data) %>% model.response()
 
