@@ -26,7 +26,7 @@ run_strat_reg.default <- function(.data,
                                   .cluster,
                                   .covariates = NULL, ...) {
   clean.data <- .data %>%
-    select_(.dots = c(union(c(all.vars(.formula), .strat.by), .covariates), .cluster)) %>%
+    select_(.dots = c(all.vars(.formula), .strat.by, .covariates, .cluster)) %>%
     na.omit %>%
     tidyr::unite_("stratum", from = .strat.by, sep = ".", remove = TRUE) %>%
     mutate(stratum = factor(stratum))
@@ -39,57 +39,61 @@ run_strat_reg.default <- function(.data,
 
   get.strat.design.matrix <- function() {
     strata.contrasts <- clean.data %>%
-    select_(.dots = c(all.vars(.formula)[-1], "stratum", .covariates)) %>% {
-      strata.sizes <- model.matrix(~ stratum, .) %>% colSums
-      contrasts(.$stratum, contrasts = FALSE) %>%
-        magrittr::inset(1, , strata.sizes)
-    }
+      select_(.dots = c(all.vars(.formula)[-1], "stratum", .covariates)) %>% {
+        strata.sizes <- model.matrix(~ stratum, .) %>% colSums
+
+        contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
+          magrittr::inset(1, , strata.sizes)
+      }
 
     colnames(strata.contrasts)[1] <- ""
 
     strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
     strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
 
-    strat.design.mat <- clean.data %>%
-      model.matrix(~ stratum, ., contrasts.arg = list(stratum = strata.contrasts)) %>%
-      magrittr::extract(, -1)
-
-    treat.design.mat <- model.matrix(.formula, clean.data) %>%
-      magrittr::extract(, -1) %>%
-      set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2")) %>% {
-        new.col.names <- paste(rep(colnames(.), each = ncol(strat.design.mat)), colnames(strat.design.mat), sep = "_")
-        plyr::alply(., 2, function(.treat.col) strat.design.mat * .treat.col) %>% { do.call(cbind, .) } %>%
-          set_colnames(new.col.names)
-      }
-
+    strat.design.mat <- update.formula(.formula, ~ . * stratum) %>%
+      model.matrix(clean.data, contrasts.arg = list(stratum = strata.contrasts)) %>%
+      magrittr::extract(, stringr::str_detect(colnames(.), "stratum")) %>%
+      set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2"))
 
     if (!is.null(.covariates)) {
       covar.design.mat <- clean.data %>%
+        transmute_(.dots = c("stratum", setNames(.covariates, paste0("covar_", .covariates)))) %>%
         group_by(stratum) %>%
-        do(strat.covar.mat = {
-          model.matrix(as.formula(sprintf("~ %s", paste(.covariates, collapse = " + "))), .) %>%
-            magrittr::extract(, -1) %>%
-            t %>%
-            magrittr::subtract(rowMeans(.))
-        }) %>%
-        ungroup %>% {
-          do.call(cbind, .$strat.covar.mat)
-        } %>%
-        t %>%
-        set_colnames(paste0("covar_", colnames(.))) %>% {
-          new.col.names <- paste(rep(colnames(.), each = ncol(strat.design.mat)), colnames(strat.design.mat), sep = "_")
+        mutate_all(funs(. - mean(.))) %>%
+        ungroup %>%
+        model.matrix(as.formula(sprintf("~ (%s) * stratum", paste(paste0("covar_", .covariates), collapse = " + "))),
+                     data = .,
+                     contrasts.arg = list(stratum = strata.contrasts)) %>%
+        magrittr::extract(, stringr::str_detect(colnames(.), "covar_.*stratum")) #%>%
+        # set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2"))
 
-          unname(.) %>%
-            plyr::alply(2, function(.covar.col) strat.design.mat * .covar.col) %>% { do.call(cbind, .) } %>%
-            set_colnames(new.col.names)
-        }
-      design.mat <- cbind(strat.design.mat, treat.design.mat, covar.design.mat)
+        # do(strat.covar.mat = {
+        #   as.formula(sprintf("~ %s", paste(.covariates, collapse = " + "))) %>%
+        #     update.formula(~ . * stratum) %>%
+        #     model.matrix(, .) %>%
+        #     magrittr::extract(, -1) %>%
+        #     t %>%
+        #     magrittr::subtract(rowMeans(.))
+        # }) %>%
+        # ungroup %>% {
+        #   do.call(cbind, .$strat.covar.mat)
+        # } %>%
+        # t %>%
+        # set_colnames(paste0("covar_", colnames(.))) %>% {
+        #   new.col.names <- paste(rep(colnames(.), each = ncol(strat.design.mat)), colnames(strat.design.mat), sep = "_")
+        #
+        #   unname(.) %>%
+        #     plyr::alply(2, function(.covar.col) strat.design.mat * .covar.col) %>% { do.call(cbind, .) } %>%
+        #     set_colnames(new.col.names)
+        # }
+      design.mat <- cbind(strat.design.mat, covar.design.mat)
     } else {
-      design.mat <- cbind(strat.design.mat, treat.design.mat)
+      design.mat <- strat.design.mat
     }
 
     design.mat %>%
-      set_colnames(stringr::str_replace_all(colnames(.), list("_?stratum$" = "", "^$" = "(intercept)")))
+      set_colnames(stringr::str_replace_all(colnames(.), list(":?stratum$" = "", "^$" = "(intercept)")))
   }
 
   design.mat <- get.strat.design.matrix()
