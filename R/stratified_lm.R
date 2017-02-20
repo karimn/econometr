@@ -169,8 +169,10 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
 linear_tester <- function(reg.output, test.list, joint = FALSE) {
   new.class <- "linear_test_result"
 
+  reg.vcov <- vcov_clx(reg.output)
+
   res <- if (!joint) {
-    purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = vcov_clx, test = "F") %>% `attr<-`("linear.test", .x)) %>%
+    purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
     purrr::map_df(~ mutate(broom::tidy(.x),
                     linear.test = attr(.x, "linear.test"),
                     estimate = attr(.x, "value"),
@@ -180,7 +182,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
   } else {
     new.class <- c("linear_test_result_joint", new.class)
 
-    car::lht(reg.output, test.list, vcov = vcov_clx, test = "F") %>%
+    car::lht(reg.output, test.list, vcov = reg.vcov, test = "F") %>%
       broom::tidy() %>%
       filter(!is.na(p.value)) %>%
       mutate(linear.test = list(test.list)) %>%
