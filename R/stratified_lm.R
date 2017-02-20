@@ -75,7 +75,7 @@ run_strat_reg.default <- function(.data,
   }
 
   design.mat %<>%
-    set_colnames(stringr::str_replace_all(colnames(.), list(":?stratum$" = "", "^$" = "(intercept)")))
+    set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
 
   y <- model.frame(.formula, clean.data) %>% model.response()
 
