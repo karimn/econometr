@@ -2,16 +2,16 @@
 #'
 #' From https://cran.r-project.org/web/packages/broom/vignettes/bootstrapping.html
 #'
-#' @param df
-#' @param m
-#' @param block
-#' @param .valid.pred
+#' @param df data to bootstrap
+#' @param m number of samples
+#' @param block string vector of IDs identifying blocks
+#' @param .valid.pred predicate function to accept samples
 #'
 #' @return
 #' @export
 #'
 #' @examples
-block_bootstrap <- function(df, m, block, .valid.pred) {
+block_bootstrap_ <- function(df, m, block, .valid.pred) {
   if (missing(block)) {
     n <- nrow(df)
 
@@ -20,7 +20,7 @@ block_bootstrap <- function(df, m, block, .valid.pred) {
   } else {
     block.info <- df %>%
       mutate(bootstrap.interal.index = seq_len(nrow(.)) - 1) %>%
-      group_by_(block) %>%
+      group_by_(.dots = block) %>%
       summarize(bn = n(),
                 indices = list(bootstrap.interal.index))
 
@@ -45,4 +45,19 @@ block_bootstrap <- function(df, m, block, .valid.pred) {
   class(df) <- c("grouped_df", "tbl_df", "tbl", "data.frame")
 
   return(df)
+}
+
+#' Block bootstrap
+#'
+#' @param df data to bootstrap
+#' @param m number of samples
+#' @param ... IDs identifying blocks
+#' @param .valid.pred predicate function to accept samples
+#'
+#' @return
+#' @export
+#'
+#' @examples
+block_bootstrap <- function(df, m, ..., .valid.pred) {
+  block_bootstrap_(df, m, lazyeval::lazy_dots(...), .valid.pred = .valid.pred)
 }

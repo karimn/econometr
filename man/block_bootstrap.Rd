@@ -4,11 +4,17 @@
 \alias{block_bootstrap}
 \title{Block bootstrap}
 \usage{
-block_bootstrap(df, m, block, .valid.pred)
+block_bootstrap(df, m, ..., .valid.pred)
 }
 \arguments{
-\item{.valid.pred}{}
+\item{df}{data to bootstrap}
+
+\item{m}{number of samples}
+
+\item{...}{IDs identifying blocks}
+
+\item{.valid.pred}{predicate function to accept samples}
 }
 \description{
-From https://cran.r-project.org/web/packages/broom/vignettes/bootstrapping.html
+Block bootstrap
 }

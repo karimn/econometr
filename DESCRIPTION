@@ -1,7 +1,7 @@
 Package: econometr
 Type: Package
 Title: Econometrics
-Version: 0.1.4
+Version: 0.1.5
 Authors@R: person("Karim", "Naguib", email = "karimn2.0@gmail.com", role = c("aut", "cre"))
 Description: Implementing own commonly used functions
 License: None
