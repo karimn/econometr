@@ -22,10 +22,11 @@ block_bootstrap_ <- function(df, m, block, .valid.pred) {
       mutate(bootstrap.interal.index = seq_len(nrow(.)) - 1) %>%
       group_by_(.dots = block) %>%
       summarize(bn = n(),
-                indices = list(bootstrap.interal.index))
+                indices = list(bootstrap.interal.index)) %>%
+      ungroup
 
     index.list <- replicate(m,
-                            sample_n(block.info, nrow(block.info), replace = TRUE) %$% indices %>% unlist,
+                            sample_n(block.info, nrow(block.info), replace = TRUE) %$% unlist(indices),
                             simplify = FALSE)
 
     if (!missing(.valid.pred)) {
