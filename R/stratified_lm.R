@@ -156,6 +156,29 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
     mutate(term = stringr::str_replace(term, "^covar_", ""))
 }
 
+#' Calculate the R Squared for stratified regressions
+#'
+#' @param fm stratified regression results
+#' @param adjusted
+#'
+#' @return
+#' @export
+#'
+#' @examples
+r_squared <- function(fm, adjusted = TRUE) {
+  # Taken from summary.lm()
+  mss <- sum((fm$fitted.values - mean(fm$fitted.values))^2)
+  rss <- sum(fm$residuals^2)
+
+  r.squared <- mss / (mss + rss)
+
+  if (adjusted) {
+    r.squared <- 1 - (1 - r.squared) * ((length(fm$fitted.values) - 1)/fm$residual.df)
+  }
+
+  return(r.squared)
+}
+
 #' Title
 #'
 #' @param reg.output
