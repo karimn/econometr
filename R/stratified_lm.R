@@ -173,7 +173,7 @@ r_squared <- function(fm, adjusted = TRUE) {
   r.squared <- mss / (mss + rss)
 
   if (adjusted) {
-    r.squared <- 1 - (1 - r.squared) * ((length(fm$fitted.values) - 1)/fm$residual.df)
+    r.squared <- 1 - (1 - r.squared) * ((length(fm$fitted.values) - 1)/fm$df.residual)
   }
 
   return(r.squared)
