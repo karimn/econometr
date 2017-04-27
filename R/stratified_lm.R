@@ -5,9 +5,9 @@ calc.pvalue <- function(t.val) {
     magrittr::multiply_by(2)
 }
 
-generate_strat_reg_data <- function(.data, .formula, .strat.by, .covariates) {
+generate_strat_reg_data <- function(.data, .formula, .strat.by, .cluster, .covariates) {
   clean.data <- .data %>%
-    select_(.dots = c(all.vars(.formula), .strat.by, .covariates)) %>%
+    select_(.dots = c(all.vars(.formula), .strat.by, .cluster, .covariates)) %>%
     na.omit %>%
     tidyr::unite_("stratum", from = .strat.by, sep = ".", remove = TRUE) %>%
     mutate(stratum = factor(stratum))
@@ -55,7 +55,9 @@ generate_strat_reg_data <- function(.data, .formula, .strat.by, .covariates) {
       cbind(design.mat, .)
   }
 
-  lst(design.mat, response = model.frame(.formula, clean.data) %>% model.response())
+  lst(design.mat,
+      response = model.frame(.formula, clean.data) %>% model.response(),
+      cluster = unname(unlist(clean.data[, .cluster])))
 }
 
 #' @export
@@ -78,7 +80,7 @@ run_strat_reg.default <- function(.data,
                                   .strat.by,
                                   .cluster,
                                   .covariates = NULL, ...) {
-  reg.data <- generate_strat_reg_data(.data, .formula, .strat.by, .covariates)
+  reg.data <- generate_strat_reg_data(.data, .formula, .strat.by, .cluster, .covariates)
 
   design.mat <- reg.data$design.mat %>%
     set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
@@ -89,7 +91,7 @@ run_strat_reg.default <- function(.data,
 
   fm$coefficients %<>% magrittr::extract(!na.coef)
 
-  fm$cluster <- unname(unlist(.data[, .cluster]))
+  fm$cluster <- reg.data$cluster
   fm$model <- cbind(reg.data$response, design.mat[, !na.coef])
 
   class(fm) <- "lm_strat"
