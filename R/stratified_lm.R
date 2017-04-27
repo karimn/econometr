@@ -5,7 +5,7 @@ calc.pvalue <- function(t.val) {
     magrittr::multiply_by(2)
 }
 
-generate_strat_reg_design_matrix <- function(.data, .formula, .strat.by, .covariates) {
+generate_strat_reg_data <- function(.data, .formula, .strat.by, .covariates) {
   clean.data <- .data %>%
     select_(.dots = c(all.vars(.formula), .strat.by, .covariates)) %>%
     na.omit %>%
@@ -55,7 +55,7 @@ generate_strat_reg_design_matrix <- function(.data, .formula, .strat.by, .covari
       cbind(design.mat, .)
   }
 
-  return(design.mat)
+  lst(design.mat, response = model.frame(.formula, clean.data) %>% model.response())
 }
 
 #' @export
@@ -78,13 +78,12 @@ run_strat_reg.default <- function(.data,
                                   .strat.by,
                                   .cluster,
                                   .covariates = NULL, ...) {
-  design.mat <- .data %>%
-    generate_strat_reg_design_matrix(.formula, .strat.by, .covariates) %>%
+  reg.data <- generate_strat_reg_data(.formula, .strat.by, .covariates)
+
+  design.mat <- reg.data$design.mat %>%
     set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
 
-  y <- model.frame(.formula, .data) %>% model.response()
-
-  fm <- lm.fit(design.mat, y)
+  fm <- lm.fit(design.mat, reg.data$response)
 
   na.coef <- is.na(fm$coefficients)
 
