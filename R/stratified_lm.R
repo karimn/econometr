@@ -78,7 +78,7 @@ run_strat_reg.default <- function(.data,
                                   .strat.by,
                                   .cluster,
                                   .covariates = NULL, ...) {
-  reg.data <- generate_strat_reg_data(.formula, .strat.by, .covariates)
+  reg.data <- generate_strat_reg_data(.data, .formula, .strat.by, .covariates)
 
   design.mat <- reg.data$design.mat %>%
     set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
