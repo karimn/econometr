@@ -7,7 +7,7 @@ calc.pvalue <- function(t.val) {
 
 generate_strat_reg_design_matrix <- function(.data, .formula, .strat.by, .covariates) {
   clean.data <- .data %>%
-    select_(.dots = c(all.vars(.formula), .strat.by, .covariates, .cluster)) %>%
+    select_(.dots = c(all.vars(.formula), .strat.by, .covariates)) %>%
     na.omit %>%
     tidyr::unite_("stratum", from = .strat.by, sep = ".", remove = TRUE) %>%
     mutate(stratum = factor(stratum))
