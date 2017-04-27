@@ -90,7 +90,7 @@ run_strat_reg.default <- function(.data,
   fm$coefficients %<>% magrittr::extract(!na.coef)
 
   fm$cluster <- unname(unlist(.data[, .cluster]))
-  fm$model <- cbind(y, design.mat[, !na.coef])
+  fm$model <- cbind(reg.data$response, design.mat[, !na.coef])
 
   class(fm) <- "lm_strat"
 
