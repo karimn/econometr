@@ -85,14 +85,15 @@ run_strat_reg.default <- function(.data,
   design.mat <- reg.data$design.mat %>%
     set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
 
-  fm <- lm.fit(design.mat, reg.data$response)
+  y <- reg.data$response
+  fm <- lm.fit(design.mat, y)
 
   na.coef <- is.na(fm$coefficients)
 
   fm$coefficients %<>% magrittr::extract(!na.coef)
 
   fm$cluster <- reg.data$cluster
-  fm$model <- cbind(reg.data$response, design.mat[, !na.coef])
+  fm$model <- cbind(y, design.mat[, !na.coef])
 
   class(fm) <- "lm_strat"
 
