@@ -5,26 +5,7 @@ calc.pvalue <- function(t.val) {
     magrittr::multiply_by(2)
 }
 
-#' @export
-run_strat_reg  <- function(.data, ...) UseMethod("run_strat_reg")
-
-#' Run Stratified Regression
-#'
-#' @param .data
-#' @param .formula
-#' @param .strat.by
-#' @param .cluster
-#' @param .covariates
-#'
-#' @return
-#' @export
-#'
-#' @examples
-run_strat_reg.default <- function(.data,
-                                  .formula,
-                                  .strat.by,
-                                  .cluster,
-                                  .covariates = NULL, ...) {
+generate_strat_reg_design_matrix <- function(.data, .formula, .strat.by, .covariates) {
   clean.data <- .data %>%
     select_(.dots = c(all.vars(.formula), .strat.by, .covariates, .cluster)) %>%
     na.omit %>%
@@ -74,10 +55,34 @@ run_strat_reg.default <- function(.data,
       cbind(design.mat, .)
   }
 
-  design.mat %<>%
+  return(design.mat)
+}
+
+#' @export
+run_strat_reg  <- function(.data, ...) UseMethod("run_strat_reg")
+
+#' Run Stratified Regression
+#'
+#' @param .data
+#' @param .formula
+#' @param .strat.by
+#' @param .cluster
+#' @param .covariates
+#'
+#' @return
+#' @export
+#'
+#' @examples
+run_strat_reg.default <- function(.data,
+                                  .formula,
+                                  .strat.by,
+                                  .cluster,
+                                  .covariates = NULL, ...) {
+  design.mat <- .data %>%
+    generate_strat_reg_design_matrix(.formula, .strat.by, .covariates) %>%
     set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
 
-  y <- model.frame(.formula, clean.data) %>% model.response()
+  y <- model.frame(.formula, .data) %>% model.response()
 
   fm <- lm.fit(design.mat, y)
 
@@ -85,7 +90,7 @@ run_strat_reg.default <- function(.data,
 
   fm$coefficients %<>% magrittr::extract(!na.coef)
 
-  fm$cluster <- unname(unlist(clean.data[, .cluster]))
+  fm$cluster <- unname(unlist(.data[, .cluster]))
   fm$model <- cbind(y, design.mat[, !na.coef])
 
   class(fm) <- "lm_strat"
