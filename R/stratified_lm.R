@@ -185,7 +185,7 @@ predict.lm_strat <- function(fm, newdata, ...) {
       design.mat
   }
 
-  fm$coefficients %*% newdata[, names(fm$coefficients)]
+  fm$coefficients %>% crossprod(newdata[, names(.)])
 }
 
 #' Calculate the R Squared for stratified regressions
