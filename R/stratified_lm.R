@@ -178,14 +178,14 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
 #' @examples
 predict.lm_strat <- function(fm, newdata, ...) {
   if (missing(newdata)) {
-    newdata <- estfun(fm)
+    newdata <- fm$model[, -1]
   } else {
     newdata %<>%
       generate_strat_reg_data(fm$formula, fm$strat.by, fm$cluster, fm$covariates) %$%
       design.mat
   }
 
-  fm$coefficients %>% crossprod(newdata[, names(.)])
+  fm$coefficients %>% magrittr::multiply_by_matrix(newdata[, names(.)], .)
 }
 
 #' Calculate the R Squared for stratified regressions
