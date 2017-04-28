@@ -94,6 +94,9 @@ run_strat_reg.default <- function(.data,
 
   fm$cluster <- reg.data$cluster
   fm$model <- cbind(y, design.mat[, !na.coef])
+  fm$formula <- .formula
+  fm$strat.by <- .strat.by
+  fm$covariates <- .covariates
 
   class(fm) <- "lm_strat"
 
@@ -161,6 +164,28 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
            .include_covar | !stringr::str_detect(term, "covar_")) %>%
     arrange(stringr::str_detect(term, "covar_")) %>% # Put the covariates last
     mutate(term = stringr::str_replace(term, "^covar_", ""))
+}
+
+#' Predict outcomes for stratified linear regressions
+#'
+#' @param fm
+#' @param newdata
+#' @param ...
+#'
+#' @return
+#' @export
+#'
+#' @examples
+predict.lm_strat <- function(fm, newdata, ...) {
+  if (missing(newdata)) {
+    newdata <- estfun(fm)
+  } else {
+    newdata %<>%
+      generate_strat_reg_data(fm$formula, fm$strat.by, fm$cluster, fm$covariates) %$%
+      design.mat
+  }
+
+  fm$coefficients %*% newdata[, names(fm$coefficients)]
 }
 
 #' Calculate the R Squared for stratified regressions
