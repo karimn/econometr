@@ -182,7 +182,8 @@ predict.lm_strat <- function(fm, newdata, ...) {
   } else {
     newdata %<>%
       generate_strat_reg_data(fm$formula, fm$strat.by, fm$cluster, fm$covariates) %$%
-      design.mat
+      design.mat %>%
+      set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
   }
 
   fm$coefficients %>% magrittr::multiply_by_matrix(newdata[, names(.)], .)
