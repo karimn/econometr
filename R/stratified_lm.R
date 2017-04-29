@@ -19,8 +19,12 @@ generate_strat_reg_data <- function(.data, .formula, .strat.by, .cluster.var.nam
   old.options <- options(contrasts = old.contrasts)
   on.exit(options(old.options), add = TRUE)
 
+  rhs.vars <- terms(.formula) %>%
+    delete.response() %>%
+    all.vars()
+
   strata.contrasts <- clean.data %>%
-    select_(.dots = c(all.vars(.formula)[-1], "stratum", .covariates)) %>% {
+    select_(.dots = c(rhs.vars, "stratum", .covariates)) %>% {
       strata.sizes <- model.matrix(~ stratum, .) %>% colSums
 
       contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
@@ -35,7 +39,7 @@ generate_strat_reg_data <- function(.data, .formula, .strat.by, .cluster.var.nam
   design.mat <- update.formula(.formula, ~ . * stratum) %>%
     model.matrix(clean.data, contrasts.arg = list(stratum = strata.contrasts)) %>%
     magrittr::extract(, stringr::str_detect(colnames(.), "stratum")) %>%
-    set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(all.vars(.formula)[-1], collapse = "|")), "\\2"))
+    set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(rhs.vars, collapse = "|")), "\\2"))
 
   # Handling the covariates on their own because we want to demean them for each stratum. That way the intercept has a clearer
   # interpretation
@@ -183,7 +187,8 @@ predict.lm_strat <- function(fm, newdata, ...) {
     newdata <- fm$model[, -1]
   } else {
     newdata <- newdata %>%
-      generate_strat_reg_data(formula(Formula::Formula(fm$formula), lhs = 0), fm$strat.by, fm$cluster.var.name, fm$covariates, .drop.response = TRUE) %$%
+      # generate_strat_reg_data(formula(Formula::Formula(fm$formula), lhs = 0), fm$strat.by, fm$cluster.var.name, fm$covariates, .drop.response = TRUE) %$%
+      generate_strat_reg_data(formula(delete.response(terms(fm$formula))), fm$strat.by, fm$cluster.var.name, fm$covariates, .drop.response = TRUE) %$%
       design.mat %>%
       set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
   }

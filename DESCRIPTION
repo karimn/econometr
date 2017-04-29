@@ -20,5 +20,4 @@ Imports:
   car,
   sp,
   foreach,
-  lazyeval,
-  Formula
+  lazyeval
