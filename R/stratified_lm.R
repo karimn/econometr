@@ -84,7 +84,7 @@ run_strat_reg.default <- function(.data,
 
   clean.data <- .data %>%
     select_(.dots = c(all.vars(.formula), .strat.by, .cluster, .covariates)) %>%
-    na.omit
+    na.omit()
 
   # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
   old.contrasts <- getOption("contrasts")
@@ -194,7 +194,7 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
          std.error = vcov_clx(fm) %>% diag %>% sqrt,
          statistic = fm$coefficients / std.error,
          p.value = calc.pvalue(statistic)) %>%
-    filter(!stringr::str_detect(term, "stratum"),
+    filter(!stringr::str_detect(term, fm$strat.by),
            .include_covar | !stringr::str_detect(term, "covar_")) %>%
     arrange(stringr::str_detect(term, "covar_")) %>% # Put the covariates last
     mutate(term = stringr::str_replace(term, "^covar_", ""))
