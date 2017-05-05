@@ -81,6 +81,7 @@ run_strat_reg.default <- function(.data,
                                   .cluster,
                                   .covariates = NULL, ...) {
   stopifnot(length(.strat.by) == 1)
+  stopifnot(is.factor(magrittr::extract2(.data, .strat.by)))
 
   clean.data <- .data %>%
     select_(.dots = c(all.vars(.formula), .strat.by, .cluster, .covariates)) %>%
@@ -97,11 +98,9 @@ run_strat_reg.default <- function(.data,
     all.vars()
 
   strata.contrasts <- clean.data %>%
-    # select_(.dots = c(rhs.vars, "stratum", .covariates)) %>% {
     select_(.dots = c(rhs.vars, .strat.by, .covariates)) %>% {
       strata.sizes <- model.matrix(as.formula(paste("~ ", .strat.by)), .) %>% colSums
 
-      # contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
       contr.Treatment(levels(.[[.strat.by]]), contrasts = FALSE) %>%
         magrittr::inset(1, , strata.sizes)
     }
