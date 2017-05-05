@@ -5,52 +5,35 @@ calc.pvalue <- function(t.val) {
     magrittr::multiply_by(2)
 }
 
-generate_strat_reg_data <- function(.data, .formula, .strat.by, .cluster.var.name, .covariates, .drop.response = FALSE) {
-  clean.data <- .data %>%
-    select_(.dots = c(all.vars(.formula), .strat.by, .cluster.var.name, .covariates)) %>%
-    # select_(.dots = c(all.vars(.formula)[if (.drop.response) -1 else TRUE], .strat.by, .cluster.var.name, .covariates)) %>%
-    na.omit %>%
-    tidyr::unite_("stratum", from = .strat.by, sep = ".", remove = TRUE) %>%
-    mutate(stratum = factor(stratum))
-
-  # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
-  old.contrasts <- getOption("contrasts")
-  old.contrasts["unordered"] <- "contr.Treatment"
-  old.options <- options(contrasts = old.contrasts)
-  on.exit(options(old.options), add = TRUE)
-
+generate_strat_reg_data <- function(.data, .formula, .strat.by, .strata.contrasts, .covariates) {
   rhs.vars <- terms(.formula) %>%
     delete.response() %>%
     all.vars()
 
-  strata.contrasts <- clean.data %>%
-    select_(.dots = c(rhs.vars, "stratum", .covariates)) %>% {
-      strata.sizes <- model.matrix(~ stratum, .) %>% colSums
+  stratum.contrasts.list <- setNames(list(.strata.contrasts), .strat.by)
 
-      contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
-        magrittr::inset(1, , strata.sizes)
-    }
+  if (.strat.by %in% names(.data)) {
+    design.mat <- update.formula(.formula, as.formula(paste("~ . *", .strat.by))) %>%
+      model.matrix(.data, contrasts.arg = stratum.contrasts.list) %>%
+      magrittr::extract(, stringr::str_detect(colnames(.), .strat.by)) #%>%
+      # set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(rhs.vars, collapse = "|")), "\\2"))
+  } else {
+    design.mat <- model.matrix(.formula, .data, contrasts.arg = stratum.contrasts.list)
+  }
 
-  colnames(strata.contrasts)[1] <- ""
-
-  strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
-  strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
-
-  design.mat <- update.formula(.formula, ~ . * stratum) %>%
-    model.matrix(clean.data, contrasts.arg = list(stratum = strata.contrasts)) %>%
-    magrittr::extract(, stringr::str_detect(colnames(.), "stratum")) %>%
+  design.mat %<>%
     set_colnames(stringr::str_replace_all(colnames(.), sprintf("(%s)\\[T\\.([^\\]]+)\\]", paste(rhs.vars, collapse = "|")), "\\2"))
 
   # Handling the covariates on their own because we want to demean them for each stratum. That way the intercept has a clearer
   # interpretation
-  if (!is.null(.covariates)) {
-    design.mat <- clean.data %>%
-      transmute_(.dots = c("stratum", setNames(.covariates, paste0("covar_", .covariates)))) %>%
-      group_by(stratum) %>%
-      do(strat.covar.mat = model.matrix(as.formula(sprintf("~ (%s) * stratum", paste(paste0("covar_", .covariates), collapse = " + "))),
+  if (!purrr::is_empty(.covariates)) {
+    design.mat <- .data %>%
+      transmute_(.dots = c(.strat.by, setNames(.covariates, paste0("covar_", .covariates)))) %>%
+      group_by_(.strat.by) %>%
+      do(strat.covar.mat = model.matrix(as.formula(sprintf("~ (%s) * %s", paste(paste0("covar_", .covariates), collapse = " + "), .strat.by)),
                                         data = .,
-                                        contrasts.arg = list(stratum = strata.contrasts)) %>%
-          magrittr::extract(, stringr::str_detect(colnames(.), "covar_.*stratum")) %>%
+                                        contrasts.arg = stratum.contrasts.list) %>%
+          magrittr::extract(, stringr::str_detect(colnames(.), paste0("covar_.*", .strat.by))) %>%
           t %>%
           magrittr::subtract(rowMeans(.))) %>%
       ungroup %>% {
@@ -58,11 +41,23 @@ generate_strat_reg_data <- function(.data, .formula, .strat.by, .cluster.var.nam
       } %>%
       t %>%
       cbind(design.mat, .)
+
+
+    # covar.row.means <- covar.design.mat %>%
+    #   group_by_(.strat.by) %>%
+    #   do(strat.covar.means = rowMeans(.$strat.covar.mat[[1]])) %>%
+    #   ungroup
+    #
+    # design.mat <- covar.design.mat %>% {
+    #   do.call(cbind, .$strat.covar.mat)
+    #   } %>%
+    #   t %>%
+    #   cbind(design.mat, .)
+
   }
 
-  lst(design.mat,
-      response = if (.drop.response) NULL else { model.frame(.formula, clean.data) %>% model.response() },
-      cluster = unname(unlist(clean.data[, .cluster.var.name])))
+  return(design.mat)
+
 }
 
 #' @export
@@ -85,23 +80,56 @@ run_strat_reg.default <- function(.data,
                                   .strat.by,
                                   .cluster,
                                   .covariates = NULL, ...) {
-  reg.data <- generate_strat_reg_data(.data, .formula, .strat.by, .cluster, .covariates)
+  stopifnot(length(.strat.by) == 1)
 
-  design.mat <- reg.data$design.mat %>%
-    set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
+  clean.data <- .data %>%
+    select_(.dots = c(all.vars(.formula), .strat.by, .cluster, .covariates)) %>%
+    na.omit
 
-  y <- reg.data$response
+  # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
+  old.contrasts <- getOption("contrasts")
+  old.contrasts["unordered"] <- "contr.Treatment"
+  old.options <- options(contrasts = old.contrasts)
+  on.exit(options(old.options), add = TRUE)
+
+  rhs.vars <- terms(.formula) %>%
+    delete.response() %>%
+    all.vars()
+
+  strata.contrasts <- clean.data %>%
+    # select_(.dots = c(rhs.vars, "stratum", .covariates)) %>% {
+    select_(.dots = c(rhs.vars, .strat.by, .covariates)) %>% {
+      strata.sizes <- model.matrix(as.formula(paste("~ ", .strat.by)), .) %>% colSums
+
+      # contr.Treatment(levels(.$stratum), contrasts = FALSE) %>%
+      contr.Treatment(levels(.[[.strat.by]]), contrasts = FALSE) %>%
+        magrittr::inset(1, , strata.sizes)
+    }
+
+  strata <- colnames(strata.contrasts) %>%
+    stringr::str_replace("\\[(.+)\\]", "\\1")
+  colnames(strata.contrasts)[1] <- ""
+
+  strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
+  strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
+
+  design.mat <- generate_strat_reg_data(clean.data, .formula, .strat.by, strata.contrasts, .covariates) %>%
+    set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${.strat.by}$"), "^$"))))
+
+  y <- model.frame(.formula, clean.data) %>% model.response() #reg.data$response
   fm <- lm.fit(design.mat, y)
 
   na.coef <- is.na(fm$coefficients)
 
   fm$coefficients %<>% magrittr::extract(!na.coef)
 
-  fm$cluster <- reg.data$cluster
+  fm$strat.by <- .strat.by
+  fm$strata <- strata
+  fm$strata.constrasts <- strata.contrasts
+  fm$cluster <- unname(unlist(clean.data[, .cluster])) #reg.data$cluster
   fm$cluster.var.name <- .cluster
   fm$model <- cbind(y, design.mat[, !na.coef])
   fm$formula <- .formula
-  fm$strat.by <- .strat.by
   fm$covariates <- .covariates
 
   class(fm) <- "lm_strat"
@@ -186,14 +214,24 @@ predict.lm_strat <- function(fm, newdata, ...) {
   if (missing(newdata)) {
     newdata <- fm$model[, -1]
   } else {
+    # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
+    old.contrasts <- getOption("contrasts")
+    old.contrasts["unordered"] <- "contr.Treatment"
+    old.options <- options(contrasts = old.contrasts)
+    on.exit(options(old.options), add = TRUE)
+
     newdata <- newdata %>%
-      # generate_strat_reg_data(formula(Formula::Formula(fm$formula), lhs = 0), fm$strat.by, fm$cluster.var.name, fm$covariates, .drop.response = TRUE) %$%
-      generate_strat_reg_data(formula(delete.response(terms(fm$formula))), fm$strat.by, fm$cluster.var.name, fm$covariates, .drop.response = TRUE) %$%
-      design.mat %>%
-      set_colnames(stringr::str_replace_all(colnames(.), c(":?stratum$" = "", "^$" = "(intercept)")))
+      generate_strat_reg_data(formula(delete.response(terms(fm$formula))),
+                              fm$strat.by,
+                              fm$strata.constrasts,
+                              intersect(fm$covariates, names(.))) %>%
+      set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${fm$strat.by}$"), "^(\\(Intercept\\))?$"))))
   }
 
-  fm$coefficients %>% magrittr::multiply_by_matrix(newdata[, names(.)], .)
+
+  fm$coefficients %>%
+    magrittr::extract(intersect(names(.), colnames(newdata))) %>%
+    magrittr::multiply_by_matrix(newdata[, names(.)], .)
 }
 
 #' Calculate the R Squared for stratified regressions
