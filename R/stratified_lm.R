@@ -130,7 +130,7 @@ run_strat_reg.default <- function(.data,
 
   fm$strat.by <- .strat.by
   fm$strata <- strata
-  fm$strata.constrasts <- strata.contrasts
+  fm$strata.contrasts <- strata.contrasts
   fm$cluster <- unname(unlist(clean.data[, .cluster])) #reg.data$cluster
   fm$cluster.var.name <- .cluster
   fm$model <- cbind(y, design.mat[, !na.coef])
@@ -198,9 +198,10 @@ tidy.lm_strat <- function(fm, .include_covar = FALSE, ...) {
          estimate = fm$coefficients,
          std.error = vcov_clx(fm) %>% diag %>% sqrt,
          statistic = fm$coefficients / std.error,
-         p.value = calc.pvalue(statistic)) %>%
-    filter(!stringr::str_detect(term, fm$strat.by),
-           .include_covar | !stringr::str_detect(term, "covar_")) %>%
+         p.value = calc.pvalue(statistic)) %>% {
+    if (!is.null(fm$strat.by)) filter(., !stringr::str_detect(term, fm$strat.by)) else return(.)
+  } %>%
+    filter(.include_covar | !stringr::str_detect(term, "covar_")) %>%
     arrange(stringr::str_detect(term, "covar_")) %>% # Put the covariates last
     mutate(term = stringr::str_replace(term, "^covar_", ""))
 }
