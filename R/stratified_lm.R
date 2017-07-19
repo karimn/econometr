@@ -117,7 +117,7 @@ run_strat_reg.default <- function(.data,
       set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${.strat.by}$"), "^$"))))
   } else {
     design.mat <- model.matrix(.formula, clean.data)
-    strata.conrasts <- NULL
+    strata.contrasts <- NULL
     strata <- NULL
   }
 
