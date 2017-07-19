@@ -67,8 +67,8 @@ run_strat_reg  <- function(.data, ...) UseMethod("run_strat_reg")
 #'
 #' @param .data
 #' @param .formula
-#' @param .strat.by
 #' @param .cluster
+#' @param .strat.by
 #' @param .covariates
 #'
 #' @return
@@ -77,11 +77,11 @@ run_strat_reg  <- function(.data, ...) UseMethod("run_strat_reg")
 #' @examples
 run_strat_reg.default <- function(.data,
                                   .formula,
-                                  .strat.by,
                                   .cluster,
+                                  .strat.by = NULL,
                                   .covariates = NULL, ...) {
-  stopifnot(length(.strat.by) == 1)
-  stopifnot(is.factor(magrittr::extract2(.data, .strat.by)))
+  stopifnot(is.null(.strata.by) || length(.strat.by) == 1)
+  stopifnot(is.null(.strata.by) || is.factor(magrittr::extract2(.data, .strat.by)))
 
   clean.data <- .data %>%
     select_(.dots = c(all.vars(.formula), .strat.by, .cluster, .covariates)) %>%
@@ -97,23 +97,29 @@ run_strat_reg.default <- function(.data,
     delete.response() %>%
     all.vars()
 
-  strata.contrasts <- clean.data %>%
-    select_(.dots = c(rhs.vars, .strat.by, .covariates)) %>% {
-      strata.sizes <- model.matrix(as.formula(paste("~ ", .strat.by)), .) %>% colSums
+  if (!is.null(.strata.by)) {
+    strata.contrasts <- clean.data %>%
+      select_(.dots = c(rhs.vars, .strat.by, .covariates)) %>% {
+        strata.sizes <- model.matrix(as.formula(paste("~ ", .strat.by)), .) %>% colSums
 
-      contr.Treatment(levels(.[[.strat.by]]), contrasts = FALSE) %>%
-        magrittr::inset(1, , strata.sizes)
-    }
+        contr.Treatment(levels(.[[.strat.by]]), contrasts = FALSE) %>%
+          magrittr::inset(1, , strata.sizes)
+      }
 
-  strata <- colnames(strata.contrasts) %>%
-    stringr::str_replace("\\[(.+)\\]", "\\1")
-  colnames(strata.contrasts)[1] <- ""
+    strata <- colnames(strata.contrasts) %>%
+      stringr::str_replace("\\[(.+)\\]", "\\1")
+    colnames(strata.contrasts)[1] <- ""
 
-  strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
-  strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
+    strata.contrasts[1, ] %<>% magrittr::divide_by(.[1] - sum(.[-1]))
+    strata.contrasts[1, -1] %<>% magrittr::multiply_by(-1)
 
-  design.mat <- generate_strat_reg_data(clean.data, .formula, .strat.by, strata.contrasts, .covariates) %>%
-    set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${.strat.by}$"), "^$"))))
+    design.mat <- generate_strat_reg_data(clean.data, .formula, .strat.by, strata.contrasts, .covariates) %>%
+      set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${.strat.by}$"), "^$"))))
+  } else {
+    design.mat <- model.matrix(.formula, clean.data)
+    strata.conrasts <- NULL
+    strata <- NULL
+  }
 
   y <- model.frame(.formula, clean.data) %>% model.response() #reg.data$response
   fm <- lm.fit(design.mat, y)

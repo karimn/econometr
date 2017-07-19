@@ -4,7 +4,7 @@
 \alias{run_strat_reg.default}
 \title{Run Stratified Regression}
 \usage{
-\method{run_strat_reg}{default}(.data, .formula, .strat.by, .cluster,
+\method{run_strat_reg}{default}(.data, .formula, .cluster, .strat.by = NULL,
   .covariates = NULL, ...)
 }
 \arguments{
