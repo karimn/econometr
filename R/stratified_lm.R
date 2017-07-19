@@ -315,3 +315,112 @@ tidy.linear_test_result_joint <- function(.res) {
     mutate(linear.test = sprintf("(%s)", paste(linear.test, collapse = ") & ("))) %>%
     ungroup
 }
+
+#' Calculate the multiple hypotheses adjusted p-values
+#'
+#' Using the stepdown used in List, J. A., Shaikh, A. M., & Xu, Y. (2016). Multiple Hypothesis Testing in Experimental Economics (No. 21875). Code translated from the MATLAB code at https://github.com/seidelj/mht.
+#'
+#' @param origin_analysis_data
+#' @param reg_formula
+#' @param strat_by
+#' @param cluster
+#' @param covar
+#' @param hypotheses
+#' @param num_resample
+#'
+#' @return
+#' @export
+#'
+#' @examples
+strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses, num_resample = 1000) {
+  num_hypotheses <- NROW(hypotheses)
+
+  actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %>%
+    linear_tester(hypotheses) %>%
+    select(estimate)
+
+  actual_stat <- abs(actual_ate) %>%
+    unlist
+
+  cat("Before sim loop\n")
+
+  # BUGBUG This should be done in parallel; for some reason lm.fit() gets stuck when we have something around 5000 observations.
+  # lm.fit() is used by run_strat_reg().
+  sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %do% {
+    origin_analysis_data %>% {
+      if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
+    } %>%
+      distinct_(cluster) %>%
+      sample_frac(1, replace = TRUE) %>%
+      ungroup() %>%
+      left_join(origin_analysis_data, c(strat_by, cluster)) %>%
+      run_strat_reg(reg_formula, cluster, strat_by, covar) %>%
+      linear_tester(hypotheses) %>%
+      select(estimate) %>%
+      subtract(actual_ate) %>%
+      abs() %>%
+      unlist()
+  } %>%
+    unname()
+
+  cat("After sim loop\n")
+
+  # Some resamples might be invalid and so we might have slightly less simulations than requested. See above foreach loop.
+  num_success_sim <- ncol(sim_stat)
+
+  actual_p <- sim_stat %>%
+    is_weakly_greater_than(matrix(actual_stat, nrow(.), ncol(.))) %>%
+    rowSums() %>%
+    divide_by(num_success_sim) %>%
+    subtract(1, .)
+
+  sim_p <- foreach(sim_index = seq_len(num_success_sim), .combine = cbind) %do% {
+    sim_stat %>%
+      is_weakly_greater_than(matrix(.[, sim_index], nrow(.), ncol(.))) %>%
+      rowSums() %>%
+      divide_by(num_success_sim) %>%
+      subtract(1, .)
+  }
+
+  p_single <- sim_p %>%
+    aaply(1, . %>% sort(decreasing = TRUE)) %>%
+    is_weakly_less_than(matrix(actual_p, nrow(.), ncol(.))) %>%
+    alply(1, which) %>%
+    map_dbl(~ if (is_empty(.x)) 1 else min(.x) / num_success_sim)
+
+  p_single_order <- order(p_single)
+
+  # alpha_mulm <- rep(0, num_hypotheses)
+
+  alpha_mul <- foreach(hypo_index = 1:num_hypotheses, .combine = c) %do% {
+    sim_p[p_single_order[hypo_index:num_hypotheses], , drop = FALSE] %>%
+      aaply(2, max) %>%
+      sort(decreasing = TRUE) %>%
+      is_weakly_less_than(actual_p[p_single_order[hypo_index]]) %>%
+      which() %>% {
+        if (is_empty(.)) 1 else min(.) / num_success_sim
+      }
+
+    # Not yet exploiting transitivity. Code very complicated and not likely to be useful with the many TakeUp hypotheses
+
+    # if (hypo_index == 1) {
+    #   alpha_mulm[hypo_index] <- alpha_mul[hypo_index]
+    # } else {
+    #   for (back_hypo_index in (num_hypotheses - hypo_index + 1):1) {
+    #     combn(p_single_order[hypo_index:num_hypotheses], back_hypo_index) %>%
+    #       aaply(2, function(hypo_comb) {
+    #         foreach(l_index = seq_len(hypo_index)) %do% {
+    #           # TODO Currently assuming all hypotheses are for the same outcome and subgroup
+    #
+    #
+    #         }
+    #       })
+    #   }
+    # }
+  }
+
+  tibble(hypothesis = hypotheses, #[p_single_order],
+         unadj_p_value = p_single, #[p_single_order],
+         adj_p_value = alpha_mul[order(p_single_order)]) %>%
+    `attr<-`("num_resample", num_success_sim)
+}
