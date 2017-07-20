@@ -5,7 +5,7 @@
 \title{Calculate the multiple hypotheses adjusted p-values}
 \usage{
 strat_mht(origin_analysis_data, reg_formula, strat_by, cluster, covar,
-  hypotheses, num_resample = 1000)
+  hypotheses, num_resample = 1000, parallel = FALSE)
 }
 \arguments{
 \item{num_resample}{}

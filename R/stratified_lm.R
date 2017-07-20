@@ -332,7 +332,7 @@ tidy.linear_test_result_joint <- function(.res) {
 #' @export
 #'
 #' @examples
-strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses, num_resample = 1000) {
+strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses, num_resample = 1000, parallel = FALSE) {
   num_hypotheses <- NROW(hypotheses)
 
   actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %>%
@@ -346,7 +346,9 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
 
   # BUGBUG This should be done in parallel; for some reason lm.fit() gets stuck when we have something around 5000 observations.
   # lm.fit() is used by run_strat_reg().
-  sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %do% {
+  `%which_do%` <- if (parallel) `%dopar%` else `%do%`
+
+  sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
     origin_analysis_data %>% {
       if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
     } %>%
