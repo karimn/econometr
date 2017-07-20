@@ -387,6 +387,7 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
         run_strat_reg(reg_formula, cluster, strat_by, covar) %$%
         coefficients[hypo_col_names]
     } %>%
+      magrittr::extract(, aaply(., 2, function(sim_col) all(!is.na(sim_col)))) %>% # Remove estimate cols with NAs
       multiply_by_matrix(hypotheses, .) %>%
       subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
       abs()
@@ -448,8 +449,8 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
     # }
   }
 
-  tibble(hypothesis = hypotheses, #[p_single_order],
-         unadj_p_value = p_single, #[p_single_order],
+  tibble(#hypothesis = if(is.character(hypotheses)) hypotheses else NULL,
+         unadj_p_value = p_single,
          adj_p_value = alpha_mul[order(p_single_order)]) %>%
     `attr<-`("num_resample", num_success_sim)
 }
