@@ -335,9 +335,17 @@ tidy.linear_test_result_joint <- function(.res) {
 strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses, num_resample = 1000, parallel = FALSE) {
   num_hypotheses <- NROW(hypotheses)
 
-  actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %>%
-    linear_tester(hypotheses) %>%
-    select(estimate)
+  if (is.character(hypotheses)) {
+    actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %>%
+      linear_tester(hypotheses) %>%
+      select(estimate)
+  } else {
+    hypo_col_names <- colnames(hypotheses)
+
+    actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %$%
+      coefficients[hypo_col_names] %>%
+      multiply_by_matrix(hypotheses, .)
+  }
 
   actual_stat <- abs(actual_ate) %>%
     unlist
@@ -348,22 +356,41 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   # lm.fit() is used by run_strat_reg().
   `%which_do%` <- if (parallel) `%dopar%` else `%do%`
 
-  sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
-    origin_analysis_data %>% {
-      if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
+  if (is.character(hypotheses)) {
+    sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
+      origin_analysis_data %>% {
+          if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
+        } %>%
+        distinct_(cluster) %>%
+        sample_frac(1, replace = TRUE) %>%
+        ungroup() %>%
+        left_join(origin_analysis_data, c(strat_by, cluster)) %>%
+        run_strat_reg(reg_formula, cluster, strat_by, covar) %>%
+        linear_tester(hypotheses) %>%
+        select(estimate) %>%
+        subtract(actual_ate) %>%
+        abs() %>%
+        unlist()
     } %>%
-      distinct_(cluster) %>%
-      sample_frac(1, replace = TRUE) %>%
-      ungroup() %>%
-      left_join(origin_analysis_data, c(strat_by, cluster)) %>%
-      run_strat_reg(reg_formula, cluster, strat_by, covar) %>%
-      linear_tester(hypotheses) %>%
-      select(estimate) %>%
-      subtract(actual_ate) %>%
-      abs() %>%
-      unlist()
-  } %>%
-    unname()
+      unname()
+  } else {
+    hypo_col_names <- colnames(hypotheses)
+
+    sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
+      origin_analysis_data %>% {
+          if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
+        } %>%
+        distinct_(cluster) %>%
+        sample_frac(1, replace = TRUE) %>%
+        ungroup() %>%
+        left_join(origin_analysis_data, c(strat_by, cluster)) %>%
+        run_strat_reg(reg_formula, cluster, strat_by, covar) %$%
+        coefficients[hypo_col_names]
+    } %>%
+      multiply_by_matrix(hypotheses, .) %>%
+      subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
+      abs()
+  }
 
   cat("After sim loop\n")
 
