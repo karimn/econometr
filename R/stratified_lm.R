@@ -220,18 +220,20 @@ predict.lm_strat <- function(fm, newdata, ...) {
   if (missing(newdata)) {
     newdata <- fm$model[, -1]
   } else {
-    # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
-    old.contrasts <- getOption("contrasts")
-    old.contrasts["unordered"] <- "contr.Treatment"
-    old.options <- options(contrasts = old.contrasts)
-    on.exit(options(old.options), add = TRUE)
+    # BUGBUG Only allowing superpopulation predictions for now
 
-    newdata <- newdata %>%
-      generate_strat_reg_data(formula(delete.response(terms(fm$formula))),
-                              fm$strat.by,
-                              fm$strata.constrasts,
-                              intersect(fm$covariates, names(.))) %>%
-      set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${fm$strat.by}$"), "^(\\(Intercept\\))?$"))))
+    # Let's make the naming of contrasts (factors) a bit easier to parse. Changing back to default on function exit
+    # old.contrasts <- getOption("contrasts")
+    # old.contrasts["unordered"] <- "contr.Treatment"
+    # old.options <- options(contrasts = old.contrasts)
+    # on.exit(options(old.options), add = TRUE)
+    #
+    # newdata <- newdata %>%
+    #   generate_strat_reg_data(formula(delete.response(terms(fm$formula))),
+    #                           fm$strat.by,
+    #                           fm$strata.constrasts,
+    #                           intersect(fm$covariates, names(.))) %>%
+    #   set_colnames(stringr::str_replace_all(colnames(.), setNames(c("", "(intercept)"), c(stringr::str_interp(":?${fm$strat.by}$"), "^(\\(Intercept\\))?$"))))
   }
 
 
@@ -350,8 +352,6 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   actual_stat <- abs(actual_ate) %>%
     unlist
 
-  cat("Before sim loop\n")
-
   # BUGBUG This should be done in parallel; for some reason lm.fit() gets stuck when we have something around 5000 observations.
   # lm.fit() is used by run_strat_reg().
   `%which_do%` <- if (parallel) `%dopar%` else `%do%`
@@ -392,8 +392,6 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
       subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
       abs()
   }
-
-  cat("After sim loop\n")
 
   # Some resamples might be invalid and so we might have slightly less simulations than requested. See above foreach loop.
   num_success_sim <- ncol(sim_stat)
