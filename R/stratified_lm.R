@@ -337,16 +337,19 @@ tidy.linear_test_result_joint <- function(.res) {
 strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses, num_resample = 1000, parallel = FALSE) {
   num_hypotheses <- NROW(hypotheses)
 
+  actual_reg_res <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar)
+
   if (is.character(hypotheses)) {
-    actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %>%
+    actual_ate <- actual_reg_res %>%
       linear_tester(hypotheses) %>%
       select(estimate)
   } else {
     hypo_col_names <- colnames(hypotheses)
 
-    actual_ate <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar) %$%
-      coefficients[hypo_col_names] %>%
-      multiply_by_matrix(hypotheses, .)
+    actual_ate <- actual_reg_res %>%
+      predict(hypotheses)
+      # coefficients[hypo_col_names] %>%
+      # multiply_by_matrix(hypotheses, .)
   }
 
   actual_stat <- abs(actual_ate) %>%
@@ -448,6 +451,7 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   }
 
   tibble(#hypothesis = if(is.character(hypotheses)) hypotheses else NULL,
+         estimate = actual_ate,
          unadj_p_value = p_single,
          adj_p_value = alpha_mul[order(p_single_order)]) %>%
     `attr<-`("num_resample", num_success_sim)
