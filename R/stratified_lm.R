@@ -352,7 +352,7 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
 
   actual_reg_res <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar)
   actual_lht_res <- actual_reg_res %>% linear_tester(hypotheses)
-  actual_ate <- actual_lht_res %>% select(estimate)
+  actual_ate <- actual_lht_res %>% pull(estimate)
 
   # if (is.character(hypotheses)) {
   # } else {
@@ -462,7 +462,7 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   }
 
   tibble(#hypothesis = if(is.character(hypotheses)) hypotheses else NULL,
-         estimate = actual_ate %>% unlist(),
+         estimate = actual_ate,
          white_p_value = actual_lht_res %>% pull(p.value),
          unadj_p_value = p_single,
          adj_p_value = alpha_mul[order(p_single_order)]) %>%
