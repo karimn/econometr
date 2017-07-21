@@ -351,22 +351,20 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   num_hypotheses <- NROW(hypotheses)
 
   actual_reg_res <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar)
+  actual_lht_res <- actual_reg_res %>% linear_tester(hypotheses)
+  actual_ate <- actual_lht_res %>% select(estimate)
 
-  if (is.character(hypotheses)) {
-    actual_ate <- actual_reg_res %>%
-      linear_tester(hypotheses) %>%
-      select(estimate)
-  } else {
-    hypo_col_names <- colnames(hypotheses)
+  # if (is.character(hypotheses)) {
+  # } else {
+  #   hypo_col_names <- colnames(hypotheses)
+  #
+  #   actual_ate <- actual_reg_res %>%
+  #     predict(hypotheses)
+  #     # coefficients[hypo_col_names] %>%
+  #     # multiply_by_matrix(hypotheses, .)
+  # }
 
-    actual_ate <- actual_reg_res %>%
-      predict(hypotheses)
-      # coefficients[hypo_col_names] %>%
-      # multiply_by_matrix(hypotheses, .)
-  }
-
-  actual_stat <- abs(actual_ate) %>%
-    unlist
+  actual_stat <- abs(actual_ate) %>% unlist
 
   # BUGBUG This should be done in parallel; for some reason lm.fit() gets stuck when we have something around 5000 observations.
   # lm.fit() is used by run_strat_reg().
@@ -464,7 +462,8 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   }
 
   tibble(#hypothesis = if(is.character(hypotheses)) hypotheses else NULL,
-         estimate = actual_ate,
+         estimate = actual_ate %>% unlist(),
+         white_p_value = actual_lht_res %>% pull(p.value),
          unadj_p_value = p_single,
          adj_p_value = alpha_mul[order(p_single_order)]) %>%
     `attr<-`("num_resample", num_success_sim)
