@@ -280,8 +280,20 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
 
   reg.vcov <- vcov_clx(reg.output)
 
+  if (!is.character(test.list) && ncol(test.list) != ncol(reg.output$model) - 1) {
+    test.list <- matrix(0, nrow = nrow(test.list), ncol(reg.output$model) - 1) %>%
+      inset(, colnames(test.list), test.list)
+  }
+
   res <- if (!joint) {
-    purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
+    test.list %>% {
+        if (is.character(.)) {
+          purrr::map(., ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x))
+        } else {
+          plyr::alply(., 1, function(test_row) car::lht(reg.output, test_row, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", test_row))
+        }
+      } %>%
+    # purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
     purrr::map_df(~ mutate(broom::tidy(.x),
                     linear.test = attr(.x, "linear.test"),
                     estimate = attr(.x, "value"),
