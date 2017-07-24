@@ -290,7 +290,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
 
   res <- if (!joint) {
     test.list %>% {
-        if (is_mat_restrict) {
+        if (!is_mat_restrict) {
           purrr::map(., ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x))
         } else {
           plyr::alply(., 1, function(test_row) car::lht(reg.output, test_row, vcov = reg.vcov, test = "F"))
@@ -298,7 +298,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
       } %>%
     # purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
     purrr::map_df(~ mutate(broom::tidy(.x),
-                    linear.test = if (is_mat_restrict) attr(.x, "linear.test") else "",
+                    linear.test = if (!is_mat_restrict) attr(.x, "linear.test") else "",
                     estimate = attr(.x, "value"),
                     std.error = sqrt(attr(.x, "vcov")))) %>%
     select(linear.test, estimate, std.error, statistic, p.value) %>%
@@ -309,7 +309,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
     car::lht(reg.output, test.list, vcov = reg.vcov, test = "F") %>%
       broom::tidy() %>%
       filter(!is.na(p.value)) %>%
-      mutate(linear.test = if (is_mat_restrict) list(test.list) else "") %>%
+      mutate(linear.test = if (!is_mat_restrict) list(test.list) else "") %>%
       select(linear.test, statistic, p.value)
   }
 
