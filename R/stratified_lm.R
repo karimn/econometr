@@ -285,6 +285,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
   if (is_mat_restrict && ncol(test.list) != ncol(reg.output$model) - 1) {
     test.list <- matrix(0, nrow = nrow(test.list), ncol(reg.output$model) - 1) %>%
       set_colnames(names(reg.output$coefficients)) %>%
+      inset(, 1, 1) %>%
       inset(, colnames(test.list), test.list)
   }
 
