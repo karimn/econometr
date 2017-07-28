@@ -285,7 +285,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
   if (is_mat_restrict && ncol(test.list) != ncol(reg.output$model) - 1) {
     test.list <- matrix(0, nrow = nrow(test.list), ncol(reg.output$model) - 1) %>%
       set_colnames(names(reg.output$coefficients)) %>%
-      inset(, 1, 1) %>%
+      # inset(, 1, 1) %>%
       inset(, colnames(test.list), test.list)
   }
 
@@ -336,7 +336,7 @@ tidy.linear_test_result_joint <- function(.res) {
 
 #' Calculate the multiple hypotheses adjusted p-values
 #'
-#' Using the stepdown used in List, J. A., Shaikh, A. M., & Xu, Y. (2016). Multiple Hypothesis Testing in Experimental Economics (No. 21875). Code translated from the MATLAB code at https://github.com/seidelj/mht.
+#' Using the stepdown approach used in List, J. A., Shaikh, A. M., & Xu, Y. (2016). Multiple Hypothesis Testing in Experimental Economics (No. 21875). Code translated from the MATLAB code at https://github.com/seidelj/mht.
 #'
 #' @param origin_analysis_data
 #' @param reg_formula
@@ -350,64 +350,61 @@ tidy.linear_test_result_joint <- function(.res) {
 #' @export
 #'
 #' @examples
-strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses, num_resample = 1000, parallel = FALSE) {
+strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, covar, hypotheses,
+                      exploit_transitivity = FALSE, subgroup_col = NULL, ate_pair_cols = NULL,
+                      num_resample = 1000, parallel = FALSE) {
+  stopifnot((!exploit_transitivity && is.null(ate_pair_cols)) || length(ate_pair_cols) == 2)
+
+  if (exploit_transitivity) {
+    warning("Current implementation doesn't seem to be working right.")
+  }
+
   num_hypotheses <- NROW(hypotheses)
 
+  pure_hypo <- hypotheses %>% { # Get rid of extra columns if present
+      if (!is.character(.)) {
+        magrittr::extract(., , !colnames(.) %in% c(subgroup_col, ate_pair_cols))
+      } else {
+        return(.)
+      }
+    }
+
   actual_reg_res <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar)
-  actual_lht_res <- actual_reg_res %>% linear_tester(hypotheses)
+  actual_lht_res <- actual_reg_res %>% linear_tester(pure_hypo)
   actual_ate <- actual_lht_res %>% pull(estimate)
-
-  # if (is.character(hypotheses)) {
-  # } else {
-  #   hypo_col_names <- colnames(hypotheses)
-  #
-  #   actual_ate <- actual_reg_res %>%
-  #     predict(hypotheses)
-  #     # coefficients[hypo_col_names] %>%
-  #     # multiply_by_matrix(hypotheses, .)
-  # }
-
-  actual_stat <- abs(actual_ate) %>% unlist
+  actual_stat <- abs(actual_ate) %>% multiply_by(sqrt(nrow(actual_reg_res$model))) %>% unlist
 
   # BUGBUG This should be done in parallel; for some reason lm.fit() gets stuck when we have something around 5000 observations.
   # lm.fit() is used by run_strat_reg().
   `%which_do%` <- if (parallel) `%dopar%` else `%do%`
 
-  if (is.character(hypotheses)) {
-    sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
-      origin_analysis_data %>% {
-          if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
-        } %>%
-        distinct_(cluster) %>%
-        sample_frac(1, replace = TRUE) %>%
-        ungroup() %>%
-        left_join(origin_analysis_data, c(strat_by, cluster)) %>%
-        run_strat_reg(reg_formula, cluster, strat_by, covar) %>%
+  sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
+    sim_reg_res <- origin_analysis_data %>% {
+        if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
+      } %>%
+      distinct_(cluster) %>%
+      sample_frac(1, replace = TRUE) %>%
+      ungroup() %>%
+      left_join(origin_analysis_data, c(strat_by, cluster)) %>%
+
+      run_strat_reg(reg_formula, cluster, strat_by, covar)
+    if (is.character(hypotheses)) {
+      sim_reg_res %>%
         linear_tester(hypotheses) %>%
         select(estimate) %>%
         subtract(actual_ate) %>%
         abs() %>%
+        multiply_by(sqrt(nrow(sim_reg_res$model))) %>%
         unlist()
-    } %>%
-      unname()
-  } else {
-    hypo_col_names <- colnames(hypotheses)
-
-    sim_stat <- foreach(resample_index = seq_len(num_resample), .combine = cbind, .errorhandling = "remove") %which_do% {
-      origin_analysis_data %>% {
-          if (!is.null(strat_by)) group_by_(., strat_by) else return(.)
-        } %>%
-        distinct_(cluster) %>%
-        sample_frac(1, replace = TRUE) %>%
-        ungroup() %>%
-        left_join(origin_analysis_data, c(strat_by, cluster)) %>%
-        run_strat_reg(reg_formula, cluster, strat_by, covar) %$%
-        coefficients[hypo_col_names]
-    } %>%
-      magrittr::extract(, aaply(., 2, function(sim_col) all(!is.na(sim_col)))) %>% # Remove estimate cols with NAs
-      multiply_by_matrix(hypotheses, .) %>%
-      subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
-      abs()
+    } else {
+      sim_reg_res %>%
+        predict(pure_hypo) %>%
+        subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
+        abs() %>%
+        multiply_by(sqrt(nrow(sim_reg_res$model))) %>% {
+          if (any(is.na(.))) stop("NA estimate") else return(.)
+        }
+    }
   }
 
   # Some resamples might be invalid and so we might have slightly less simulations than requested. See above foreach loop.
@@ -428,46 +425,122 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   }
 
   p_single <- sim_p %>%
-    aaply(1, . %>% sort(decreasing = TRUE)) %>%
+    plyr::aaply(1, . %>% sort(decreasing = TRUE)) %>%
     is_weakly_less_than(matrix(actual_p, nrow(.), ncol(.))) %>%
-    alply(1, which) %>%
+    plyr::alply(1, which) %>%
     map_dbl(~ if (is_empty(.x)) 1 else min(.x) / num_success_sim)
 
   p_single_order <- order(p_single)
 
-  # alpha_mulm <- rep(0, num_hypotheses)
+  subgroup_id <- if (!is.null(subgroup_col)) hypotheses[, subgroup_col] else rep(1, num_hypotheses)
 
-  alpha_mul <- foreach(hypo_index = 1:num_hypotheses, .combine = c) %do% {
-    sim_p[p_single_order[hypo_index:num_hypotheses], , drop = FALSE] %>%
-      aaply(2, max) %>%
+  adj_p_values <- foreach(hypo_index = 1:num_hypotheses, .combine = bind_rows) %do% {
+    alpha_mul <- sim_p[p_single_order[hypo_index:num_hypotheses], , drop = FALSE] %>%
+      plyr::aaply(2, max) %>%
       sort(decreasing = TRUE) %>%
       is_weakly_less_than(actual_p[p_single_order[hypo_index]]) %>%
       which() %>% {
         if (is_empty(.)) 1 else min(.) / num_success_sim
       }
 
-    # Not yet exploiting transitivity. Code very complicated and not likely to be useful with the many TakeUp hypotheses
+    alpha_mul_m <- alpha_mul
 
-    # if (hypo_index == 1) {
-    #   alpha_mulm[hypo_index] <- alpha_mul[hypo_index]
-    # } else {
-    #   for (back_hypo_index in (num_hypotheses - hypo_index + 1):1) {
-    #     combn(p_single_order[hypo_index:num_hypotheses], back_hypo_index) %>%
-    #       aaply(2, function(hypo_comb) {
-    #         foreach(l_index = seq_len(hypo_index)) %do% {
-    #           # TODO Currently assuming all hypotheses are for the same outcome and subgroup
-    #
-    #
-    #         }
-    #       })
-    #   }
-    # }
+    if (exploit_transitivity && hypo_index > 1) {
+      sortmaxstatm <- rep(0, num_success_sim)
+
+      for (num_hypo_index in seq(num_hypotheses - hypo_index + 1, 1, -1)) {
+        num_contract <- 0
+
+        all_hypo_comb <- combn(p_single_order[hypo_index:num_hypotheses], num_hypo_index) # (num_hypothesis - hypo_index) x num_hypo_index matrix
+
+        for (hypo_comb_index in seq_len(ncol(all_hypo_comb))) {
+          # plyr::a_ply(2, function(hypo_comb) {
+            hypo_comb <- all_hypo_comb[, hypo_comb_index]
+            contract <- FALSE
+
+            for (hypo_index_2 in seq_len(hypo_index - 1)) {
+              # Currently assuming all hypotheses are for the same outcome
+              same_subgroup <- hypo_comb[subgroup_id[hypo_comb] == subgroup_id[p_single_order[hypo_index_2]]]
+
+              if (length(same_subgroup) <= 1) {
+                contract <- FALSE
+                sortmaxstatm %<>% pmax(plyr::aaply(sim_stat[hypo_comb, , drop = FALSE], 2, max) %>%
+                # sortmaxstatm %<>% pmax(plyr::aaply(sim_stat[same_subgroup, , drop = FALSE], 2, max) %>%
+                                         sort(decreasing = TRUE))
+                break
+              } else {
+                tran <- plyr::alply(hypotheses[same_subgroup, ate_pair_cols], 1)
+                trantemp <- tran
+                counter <- 1
+
+                while (length(tran) > length(trantemp) || counter == 1) {
+                  tran <- trantemp
+                  trantemp <- tran[1]
+                  counter <- counter + 1
+
+                  if (length(tran) >= 2) {
+                    for (m in 2:length(tran)) {
+                      belong <- 0
+
+                      for (N in 1:length(trantemp)) {
+                        new_tran <- unique(c(tran[[m]], trantemp[[N]]))
+
+                        if (length(new_tran) < length(tran[[m]]) + length(trantemp[[N]])) {
+                          trantemp[[N]] <- new_tran
+                          belong <- belong + 1
+
+                          if (N == length(trantemp) && belong == 0) {
+                            trantemp <- c(trantemp, tran[m])
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                for (p in 1:length(tran)) {
+                  if (all(hypotheses[p_single_order[hypo_index_2], ate_pair_cols] %in% tran[[p]])) {
+                    contract <- TRUE
+                    break
+                  }
+                }
+
+                if (contract) break
+              }
+            }
+
+            num_contract <- num_contract + contract
+
+            if (!contract) {
+              sortmaxstatm %<>% pmax(plyr::aaply(sim_stat[hypo_comb, , drop = FALSE], 2, max) %>% sort(decreasing = TRUE))
+              # sortmaxstatm %<>% pmax(plyr::aaply(sim_stat[same_subgroup, , drop = FALSE], 2, max) %>% sort(decreasing = TRUE))
+            }
+
+            # cat(sprintf("hypo_index = %d, sum(sortmax) = %.2f, contract = %d\n", hypo_index, sum(sortmaxstatm), contract))
+          }
+
+        if (num_contract == 0) break
+      }
+
+      # cat(sprintf("hypo_index = %d, sum(sortmax) = %.2f, num_contract = %d\n", hypo_index, sum(sortmaxstatm), num_contract))
+
+      alpha_mul_m <- which(actual_p[p_single_order[hypo_index]] >= sortmaxstatm) %>% {
+          if (is_empty(.)) 1 else min(.) / num_success_sim
+      }
+    }
+
+    tibble(alpha_mul, alpha_mul_m)
+  } %>% #, error = function(err) browser()) %>%
+    set_names(c("adj_p_value", "adj_trans_p_value")) %>%
+    magrittr::extract(order(p_single_order), )
+
+  if (!exploit_transitivity) {
+    adj_p_values %<>% select(-adj_trans_p_value)
   }
 
-  tibble(#hypothesis = if(is.character(hypotheses)) hypotheses else NULL,
-         estimate = actual_ate,
+  tibble(estimate = actual_ate,
          white_p_value = actual_lht_res %>% pull(p.value),
-         unadj_p_value = p_single,
-         adj_p_value = alpha_mul[order(p_single_order)]) %>%
+         unadj_p_value = p_single) %>%
+    bind_cols(adj_p_values) %>%
     `attr<-`("num_resample", num_success_sim)
 }

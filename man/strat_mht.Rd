@@ -5,11 +5,12 @@
 \title{Calculate the multiple hypotheses adjusted p-values}
 \usage{
 strat_mht(origin_analysis_data, reg_formula, strat_by, cluster, covar,
-  hypotheses, num_resample = 1000, parallel = FALSE)
+  hypotheses, exploit_transitivity = FALSE, subgroup_col = NULL,
+  ate_pair_cols = NULL, num_resample = 1000, parallel = FALSE)
 }
 \arguments{
 \item{num_resample}{}
 }
 \description{
-Using the stepdown used in List, J. A., Shaikh, A. M., & Xu, Y. (2016). Multiple Hypothesis Testing in Experimental Economics (No. 21875). Code translated from the MATLAB code at https://github.com/seidelj/mht.
+Using the stepdown approach used in List, J. A., Shaikh, A. M., & Xu, Y. (2016). Multiple Hypothesis Testing in Experimental Economics (No. 21875). Code translated from the MATLAB code at https://github.com/seidelj/mht.
 }
