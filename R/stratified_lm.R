@@ -372,7 +372,10 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
   actual_reg_res <- run_strat_reg(origin_analysis_data, reg_formula, cluster, strat_by, covar)
   actual_lht_res <- actual_reg_res %>% linear_tester(pure_hypo)
   actual_ate <- actual_lht_res %>% pull(estimate)
-  actual_stat <- abs(actual_ate) %>% multiply_by(sqrt(nrow(actual_reg_res$model))) %>% unlist
+  actual_tstat <- actual_lht_res %>% pull(statistic)
+  # actual_stat <- abs(actual_ate) %>% multiply_by(sqrt(nrow(actual_reg_res$model))) %>% unlist
+  # actual_stat <- abs(actual_ate) %>% unlist
+  actual_stat <- abs(actual_tstat) %>% unlist
 
   # BUGBUG This should be done in parallel; for some reason lm.fit() gets stuck when we have something around 5000 observations.
   # lm.fit() is used by run_strat_reg().
@@ -386,25 +389,27 @@ strat_mht <- function(origin_analysis_data, reg_formula, strat_by, cluster, cova
       sample_frac(1, replace = TRUE) %>%
       ungroup() %>%
       left_join(origin_analysis_data, c(strat_by, cluster)) %>%
-
       run_strat_reg(reg_formula, cluster, strat_by, covar)
-    if (is.character(hypotheses)) {
+
+    # if (is.character(hypotheses)) {
       sim_reg_res %>%
-        linear_tester(hypotheses) %>%
-        select(estimate) %>%
-        subtract(actual_ate) %>%
+        linear_tester(pure_hypo) %>%
+        # select(estimate) %>%
+        # subtract(actual_ate) %>%
+        select(statistic) %>%
+        subtract(actual_tstat) %>%
         abs() %>%
-        multiply_by(sqrt(nrow(sim_reg_res$model))) %>%
+        # multiply_by(sqrt(nrow(sim_reg_res$model))) %>%
         unlist()
-    } else {
-      sim_reg_res %>%
-        predict(pure_hypo) %>%
-        subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
-        abs() %>%
-        multiply_by(sqrt(nrow(sim_reg_res$model))) %>% {
-          if (any(is.na(.))) stop("NA estimate") else return(.)
-        }
-    }
+    # } else {
+    #   sim_reg_res %>%
+    #     predict(pure_hypo) %>%
+    #     subtract(matrix(actual_ate, nrow = nrow(.), ncol = ncol(.))) %>%
+    #     abs() %>% {
+    #     # multiply_by(sqrt(nrow(sim_reg_res$model))) %>% {
+    #       if (any(is.na(.))) stop("NA estimate") else return(.)
+    #     }
+    # }
   }
 
   # Some resamples might be invalid and so we might have slightly less simulations than requested. See above foreach loop.
