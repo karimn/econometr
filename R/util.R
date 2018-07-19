@@ -6,8 +6,8 @@
 #' @export
 #'
 #' @examples
-is_outlier <- function(.values) {
-  .values %>% { . < quantile(., 0.25) - 1.5 * IQR(.) | . > quantile(., 0.75) + 1.5 * IQR(.) }
+is_outlier <- function(.values, na.rm = FALSE) {
+  .values %>% { . < quantile(., 0.25, na.rm = na.rm) - 1.5 * IQR(., na.rm = na.rm) | . > quantile(., 0.75, na.rm = na.rm) + 1.5 * IQR(., na.rm = na.rm) }
 }
 
 #' Make data wide for multiple columns

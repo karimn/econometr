@@ -4,7 +4,7 @@
 \alias{is_outlier}
 \title{Identify outlier values}
 \usage{
-is_outlier(.values)
+is_outlier(.values, na.rm = FALSE)
 }
 \arguments{
 \item{.values}{}
