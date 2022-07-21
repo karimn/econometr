@@ -150,7 +150,7 @@ run_strat_reg.default <- function(.data,
 #' @export
 #'
 #' @examples
-estfun.lm_strat <- function(fm) {
+estfun.lm_strat <- function(fm, ...) {
   fm$model %>%
     magrittr::extract(, colnames(.) != "y") %>%
     magrittr::multiply_by(fm$residuals)
@@ -164,7 +164,7 @@ estfun.lm_strat <- function(fm) {
 #' @export
 #'
 #' @examples
-bread.lm_strat <- function(fm) {
+bread.lm_strat <- function(fm, ...) {
   fm$model %>%
     magrittr::extract(, colnames(.) != "y") %>%
     crossprod %>%
