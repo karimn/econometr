@@ -4,7 +4,7 @@
 \alias{estfun.lm_strat}
 \title{Title}
 \usage{
-estfun.lm_strat(fm)
+estfun.lm_strat(fm, ...)
 }
 \arguments{
 \item{fm}{}

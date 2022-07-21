@@ -158,18 +158,18 @@ estfun.lm_strat <- function(fm, ...) {
 
 #' Title
 #'
-#' @param fm
+#' @param x
 #'
 #' @return
 #' @export
 #'
 #' @examples
-bread.lm_strat <- function(fm, ...) {
-  fm$model %>%
+bread.lm_strat <- function(x, ...) {
+  x$model %>%
     magrittr::extract(, colnames(.) != "y") %>%
     crossprod %>%
     solve %>%
-    magrittr::multiply_by(nrow(fm$model))
+    magrittr::multiply_by(nrow(x$model))
 }
 
 #' Title

@@ -4,10 +4,10 @@
 \alias{bread.lm_strat}
 \title{Title}
 \usage{
-bread.lm_strat(fm)
+bread.lm_strat(x, ...)
 }
 \arguments{
-\item{fm}{}
+\item{x}{}
 }
 \description{
 Title
