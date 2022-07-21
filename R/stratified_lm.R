@@ -145,8 +145,10 @@ run_strat_reg.default <- function(.data,
 #' Title
 #'
 #' @param fm
+#' @param ...
 #'
 #' @return
+#' @method estfun lm_strat
 #' @export
 #'
 #' @examples
@@ -159,8 +161,10 @@ estfun.lm_strat <- function(fm, ...) {
 #' Title
 #'
 #' @param x
+#' @param ...
 #'
 #' @return
+#' @method bread lm_strat
 #' @export
 #'
 #' @examples
