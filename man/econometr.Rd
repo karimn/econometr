@@ -3,8 +3,4 @@
 \docType{package}
 \name{econometr}
 \alias{econometr}
-\alias{econometr-package}
 \title{econometr}
-\description{
-econometr
-}
