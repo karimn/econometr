@@ -191,9 +191,11 @@ vcov_clx.lm_strat <- function(fm, ...) {
 #' Tidy stratified regression results
 #'
 #' @param fm
-#' @param .include_covar
+#' @param .include_covar 
+#' @param ...
 #'
 #' @return
+#' @method tidy lm_strat
 #' @export
 #'
 #' @examples
@@ -326,12 +328,14 @@ linear_tester <- function(reg.output, test.list, joint = FALSE, singular.ok = TR
 #' Title
 #'
 #' @param .res
+#' @param ...
 #'
 #' @return
+#' @method tidy linear_test_result_joint
 #' @export
 #'
 #' @examples
-tidy.linear_test_result_joint <- function(.res) {
+tidy.linear_test_result_joint <- function(.res, ...) {
   .res %>%
     rowwise %>%
     mutate(linear.test = sprintf("(%s)", paste(linear.test, collapse = ") & ("))) %>%
