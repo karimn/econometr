@@ -279,7 +279,7 @@ r_squared <- function(fm, adjusted = TRUE) {
 #' @export
 #'
 #' @examples
-linear_tester <- function(reg.output, test.list, joint = FALSE) {
+linear_tester <- function(reg.output, test.list, joint = FALSE, singular.ok = TRUE) {
   new.class <- "linear_test_result"
 
   reg.vcov <- vcov_clx(reg.output)
@@ -296,9 +296,9 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
   res <- if (!joint) {
     test.list %>% {
         if (!is_mat_restrict) {
-          purrr::map(., ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x))
+          purrr::map(., ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F", singular.ok = singular.ok) %>% `attr<-`("linear.test", .x))
         } else {
-          plyr::alply(., 1, function(test_row) car::lht(reg.output, test_row, vcov = reg.vcov, test = "F"))
+          plyr::alply(., 1, function(test_row) car::lht(reg.output, test_row, vcov = reg.vcov, test = "F", singular.ok = singular.ok))
         }
       } %>%
     # purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
