@@ -304,7 +304,7 @@ linear_tester <- function(reg.output, test.list, joint = FALSE, singular.ok = TR
         }
       } %>%
     # purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
-    purrr::map_df(~ mutate(broom::tidy(.x),
+    purrr::map_df(~ mutate(slice(broom::tidy(.x), 1),
                     linear.test = if (!is_mat_restrict) attr(.x, "linear.test") else "",
                     estimate = attr(.x, "value"),
                     std.error = sqrt(attr(.x, "vcov")))) %>%
