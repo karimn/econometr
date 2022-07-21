@@ -7,5 +7,7 @@
 #' @import foreach
 #' @importFrom stats as.formula contrasts lm.fit model.frame model.matrix model.response na.omit
 #' @importFrom car contr.Treatment
+#' @importFrom sandwich bread estfun
+#' @importFrom generics tidy
 #'
 NULL

@@ -4,10 +4,12 @@
 \alias{tidy.lm_strat}
 \title{Tidy stratified regression results}
 \usage{
-tidy.lm_strat(fm, .include_covar = FALSE, ...)
+\method{tidy}{lm_strat}(fm, .include_covar = FALSE, ...)
 }
 \arguments{
 \item{.include_covar}{}
+
+\item{...}{}
 }
 \description{
 Tidy stratified regression results

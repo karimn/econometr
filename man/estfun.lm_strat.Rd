@@ -4,10 +4,10 @@
 \alias{estfun.lm_strat}
 \title{Title}
 \usage{
-estfun.lm_strat(fm)
+\method{estfun}{lm_strat}(fm, ...)
 }
 \arguments{
-\item{fm}{}
+\item{...}{}
 }
 \description{
 Title

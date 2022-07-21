@@ -4,7 +4,7 @@
 \alias{linear_tester}
 \title{Title}
 \usage{
-linear_tester(reg.output, test.list, joint = FALSE)
+linear_tester(reg.output, test.list, joint = FALSE, singular.ok = TRUE)
 }
 \arguments{
 \item{joint}{}

@@ -4,10 +4,10 @@
 \alias{tidy.linear_test_result_joint}
 \title{Title}
 \usage{
-tidy.linear_test_result_joint(.res)
+\method{tidy}{linear_test_result_joint}(.res, ...)
 }
 \arguments{
-\item{.res}{}
+\item{...}{}
 }
 \description{
 Title

@@ -137,7 +137,7 @@ run_strat_reg.default <- function(.data,
   fm$formula <- .formula
   fm$covariates <- .covariates
 
-  class(fm) <- "lm_strat"
+  class(fm) <- c("lm_strat", "lm")
 
   return(fm)
 }
@@ -145,12 +145,14 @@ run_strat_reg.default <- function(.data,
 #' Title
 #'
 #' @param fm
+#' @param ...
 #'
 #' @return
+#' @method estfun lm_strat
 #' @export
 #'
 #' @examples
-estfun.lm_strat <- function(fm) {
+estfun.lm_strat <- function(fm, ...) {
   fm$model %>%
     magrittr::extract(, colnames(.) != "y") %>%
     magrittr::multiply_by(fm$residuals)
@@ -158,18 +160,20 @@ estfun.lm_strat <- function(fm) {
 
 #' Title
 #'
-#' @param fm
+#' @param x
+#' @param ...
 #'
 #' @return
+#' @method bread lm_strat
 #' @export
 #'
 #' @examples
-bread.lm_strat <- function(fm) {
-  fm$model %>%
+bread.lm_strat <- function(x, ...) {
+  x$model %>%
     magrittr::extract(, colnames(.) != "y") %>%
     crossprod %>%
     solve %>%
-    magrittr::multiply_by(nrow(fm$model))
+    magrittr::multiply_by(nrow(x$model))
 }
 
 #' Title
@@ -187,9 +191,11 @@ vcov_clx.lm_strat <- function(fm, ...) {
 #' Tidy stratified regression results
 #'
 #' @param fm
-#' @param .include_covar
+#' @param .include_covar 
+#' @param ...
 #'
 #' @return
+#' @method tidy lm_strat
 #' @export
 #'
 #' @examples
@@ -275,7 +281,7 @@ r_squared <- function(fm, adjusted = TRUE) {
 #' @export
 #'
 #' @examples
-linear_tester <- function(reg.output, test.list, joint = FALSE) {
+linear_tester <- function(reg.output, test.list, joint = FALSE, singular.ok = TRUE) {
   new.class <- "linear_test_result"
 
   reg.vcov <- vcov_clx(reg.output)
@@ -292,13 +298,13 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
   res <- if (!joint) {
     test.list %>% {
         if (!is_mat_restrict) {
-          purrr::map(., ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x))
+          purrr::map(., ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F", singular.ok = singular.ok) %>% `attr<-`("linear.test", .x))
         } else {
-          plyr::alply(., 1, function(test_row) car::lht(reg.output, test_row, vcov = reg.vcov, test = "F"))
+          plyr::alply(., 1, function(test_row) car::lht(reg.output, test_row, vcov = reg.vcov, test = "F", singular.ok = singular.ok))
         }
       } %>%
     # purrr::map(test.list, ~ car::lht(reg.output, .x, vcov = reg.vcov, test = "F") %>% `attr<-`("linear.test", .x)) %>%
-    purrr::map_df(~ mutate(broom::tidy(.x),
+    purrr::map_df(~ mutate(slice(broom::tidy(.x), 1),
                     linear.test = if (!is_mat_restrict) attr(.x, "linear.test") else "",
                     estimate = attr(.x, "value"),
                     std.error = sqrt(attr(.x, "vcov")))) %>%
@@ -322,12 +328,14 @@ linear_tester <- function(reg.output, test.list, joint = FALSE) {
 #' Title
 #'
 #' @param .res
+#' @param ...
 #'
 #' @return
+#' @method tidy linear_test_result_joint
 #' @export
 #'
 #' @examples
-tidy.linear_test_result_joint <- function(.res) {
+tidy.linear_test_result_joint <- function(.res, ...) {
   .res %>%
     rowwise %>%
     mutate(linear.test = sprintf("(%s)", paste(linear.test, collapse = ") & ("))) %>%

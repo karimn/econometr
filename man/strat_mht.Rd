@@ -4,9 +4,19 @@
 \alias{strat_mht}
 \title{Calculate the multiple hypotheses adjusted p-values}
 \usage{
-strat_mht(origin_analysis_data, reg_formula, strat_by, cluster, covar,
-  hypotheses, exploit_transitivity = FALSE, subgroup_col = NULL,
-  ate_pair_cols = NULL, num_resample = 1000, parallel = FALSE)
+strat_mht(
+  origin_analysis_data,
+  reg_formula,
+  strat_by,
+  cluster,
+  covar,
+  hypotheses,
+  exploit_transitivity = FALSE,
+  subgroup_col = NULL,
+  ate_pair_cols = NULL,
+  num_resample = 1000,
+  parallel = FALSE
+)
 }
 \arguments{
 \item{num_resample}{}
