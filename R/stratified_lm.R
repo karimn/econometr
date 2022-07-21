@@ -137,7 +137,7 @@ run_strat_reg.default <- function(.data,
   fm$formula <- .formula
   fm$covariates <- .covariates
 
-  class(fm) <- "lm_strat"
+  class(fm) <- c("lm_strat", "lm")
 
   return(fm)
 }
